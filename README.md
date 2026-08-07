@@ -1,2 +1,2 @@
 # ai-project-bundler
-Bash scripts to copy, clean, and bundle a codebase into Markdown files ready to upload as project knowledge for AI assistants like Claude, ChatGPT, or Gemini.
+A small pipeline of bash scripts for preparing a codebase to be used as project knowledge in AI assistants. It copies all files from a source folder, strips out files you don't want included (build artifacts, secrets, binary assets, migration files), and bundles the rest into clean, well-formatted Markdown — either as a single file or split by file extension. Useful for keeping an AI assistant's project knowledge in sync with a frontend or backend codebase without manually curating files each time.
