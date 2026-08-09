@@ -23,4 +23,4 @@ Frontend files to delete after copying:
 
 Backend files to delete after copying:
 - Migration files (these are files that start with a date like "20260308022512_")
-- launchSettings.json (contains secrets)
+- launchSettings.json (if it contains secrets)

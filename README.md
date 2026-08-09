@@ -11,7 +11,7 @@ Copy → Clean → Bundle. That's it.
 ## ✨ Why you'd want this
 
 - **Zero manual curation.** Point it at a folder, get back tidy Markdown ready to upload as project knowledge to Claude, ChatGPT, Gemini, or any other AI assistant.
-- **Frontend & backend aware.** Automatically strips the right files depending on what you're bundling — images/fonts/audio for frontend, migrations/secrets for backend.
+- **Config-driven cleanup.** Rules for what to delete (extensions, filename patterns) live in a `cleanup_rules.json` file, not hardcoded in the script — add a new project type by editing config, not code.
 - **Single file or split by extension.** Bundle everything into one `.md`, or organize output into `tsx.md`, `css.md`, `json.md`, etc.
 - **Handles large codebases gracefully.** Auto-splits output into numbered parts when it exceeds a size limit you set.
 - **Safe by default.** Never overwrites existing files or folders — no accidental data loss.
@@ -42,12 +42,12 @@ The pipeline is three independent, chainable scripts:
 | Step | Script | What it does |
 |---|---|---|
 | 1️⃣ | [`copy_files_new_folder.sh`](copy_files_new_folder_README.md) | Recursively copies every file from a source folder into a flat working copy |
-| 2️⃣ | [`cleanup_copied_files.sh`](cleanup_copied_files_README.md) | Auto-detects frontend/backend and deletes files you don't want (assets, secrets, migrations) |
+| 2️⃣ | [`cleanup_copied_files.sh`](cleanup_copied_files_README.md) | Deletes files you don't want (assets, secrets, migrations), based on a named ruleset from `cleanup_rules.json` |
 | 3️⃣ | [`bundle_files.sh`](bundle_files_README.md) | Bundles what's left into clean, syntax-highlighted Markdown |
 
 ```bash
 ./copy_files_new_folder.sh ./App_Backend
-./cleanup_copied_files.sh ./copied_files_App_Backend
+./cleanup_copied_files.sh ./copied_files_App_Backend --mode backend
 ./bundle_files.sh ./copied_files_App_Backend
 ```
 
@@ -55,10 +55,14 @@ Each script also has its own README with full usage details and examples.
 
 ### 🧹 What gets cleaned up
 
-**Frontend** — images, fonts, audio, and PDFs (large, non-code binary assets):
+Cleanup rules are named modes defined in [`cleanup_rules.json`](cleanup_rules.json), selected with `--mode`:
+
+**`frontend`** — images, fonts, audio, and PDFs (large, non-code binary assets):
 `.png` `.jpg/.jpeg` `.svg` `.ico` `.woff2` `.ttf` `.wav` `.mp3` `.pdf`
 
-**Backend** — dated migration files (e.g. `20260308022512_InitialCreate.cs`) and `launchSettings.json` (which often contains secrets)
+**`backend`** — dated migration files (e.g. `20260308022512_InitialCreate.cs`) and `launchSettings.json` (which often contains secrets)
+
+Want a `mobile` or `docs` ruleset too? Add a new key to `cleanup_rules.json` and pass `--mode mobile` — no script changes needed. If `--mode` is omitted, the script falls back to guessing from the folder name and prints a warning; see the [cleanup script README](cleanup_copied_files_README.md) for details.
 
 ### 📦 Bundling options
 
