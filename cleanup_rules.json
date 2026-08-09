@@ -1,0 +1,10 @@
+{
+  "frontend": {
+    "extensions": ["png", "jpg", "jpeg", "svg", "woff2", "ttf", "wav", "mp3", "ico", "pdf"],
+    "patterns": []
+  },
+  "backend": {
+    "extensions": [],
+    "patterns": ["^[0-9]{14}_.*", "^launchSettings\\.json$"]
+  }
+}

@@ -1,8 +1,6 @@
 # cleanup_copied_files.sh
 
-Deletes frontend or backend specific files from a folder. Run this after `copy_files_new_folder.sh`.
-
-The script auto-detects whether to apply frontend or backend rules based on the folder name.
+Deletes files from a copied folder according to a named ruleset — which extensions and filename patterns to delete are defined in a config file (`cleanup_rules.json`), not hardcoded in the script. Run this after `copy_files_new_folder.sh`.
 
 ---
 
@@ -12,34 +10,77 @@ The script auto-detects whether to apply frontend or backend rules based on the 
 # 1. Make the script executable (one-time setup)
 chmod +x cleanup_copied_files.sh
 
-# 2. Run it after copy_files_new_folder.sh
-./cleanup_copied_files.sh <folder>
+# 2. Run it, telling it which ruleset to apply
+./cleanup_copied_files.sh <folder> --mode <name> [--config <file>]
 ```
+
+| Argument | Default | Description |
+|---|---|---|
+| `folder` | required | The folder to clean up |
+| `--mode <name>` | *(guessed from folder name if omitted — see below)* | Which ruleset to apply. Must match a top-level key in the config file, e.g. `frontend` or `backend` |
+| `--config <file>` | `cleanup_rules.json` next to the script | Path to the rules config to use |
 
 ---
 
 ## Examples
 
 ```bash
-# Cleans up frontend assets from the copied folder
-./cleanup_copied_files.sh copied_files_App_Frontend
+# Explicit mode (recommended)
+./cleanup_copied_files.sh copied_files_App_Frontend --mode frontend
+./cleanup_copied_files.sh copied_files_App_Backend --mode backend
 
-# Cleans up backend specific files from the copied folder
-./cleanup_copied_files.sh copied_files_App_Backend
+# Custom config, e.g. for a mobile project
+./cleanup_copied_files.sh copied_files_App_Mobile --mode mobile --config my_rules.json
 ```
 
 ---
 
-## What gets deleted
+## Rulesets live in `cleanup_rules.json`
 
-**Frontend** (folder name contains `Frontend` or `frontend`):
-- Images: `.png`, `.jpg`, `.jpeg`, `.svg`, `.ico`
+```json
+{
+  "frontend": {
+    "extensions": ["png", "jpg", "jpeg", "svg", "woff2", "ttf", "wav", "mp3", "ico", "pdf"],
+    "patterns": []
+  },
+  "backend": {
+    "extensions": [],
+    "patterns": ["^[0-9]{14}_.*", "^launchSettings\\.json$"]
+  }
+}
+```
+
+- `extensions` — files matching `*.ext` are deleted.
+- `patterns` — filenames (not full paths) matched against these as extended regular expressions are deleted.
+
+**Adding a new project type doesn't require touching the script** — just add a new top-level key to the config and pass `--mode <that key>`.
+
+---
+
+## About the folder-name fallback
+
+If you don't pass `--mode`, the script falls back to guessing from the folder name (looking for `Frontend`/`frontend` or `Backend`/`backend`) — same as before. But it now:
+
+- **Always prints a warning** when it guesses, so you never get a silent wrong decision.
+- **Never guesses ambiguous names.** A folder like `Backend_Frontend_Tools` will still match on the first check it hits — which is exactly why passing `--mode` explicitly is recommended for anything other than quick, obviously-named folders.
+
+```
+⚠️  No --mode given — guessed mode 'frontend' from the folder name.
+    Pass --mode explicitly to avoid relying on this guess.
+```
+
+---
+
+## What gets deleted (default config)
+
+**`frontend`**:
+- Images: `.png`, `.jpg`/`.jpeg`, `.svg`, `.ico`
 - Fonts: `.woff2`, `.ttf`
 - Audio: `.wav`, `.mp3`
 - Documents: `.pdf`
 
-**Backend** (folder name contains `Backend` or `backend`):
-- Migration files (files starting with a date e.g. `20260308022512_...`)
+**`backend`**:
+- Migration files (files starting with a date, e.g. `20260308022512_...`)
 - `launchSettings.json` (contains secrets)
 
 ---
@@ -48,8 +89,8 @@ chmod +x cleanup_copied_files.sh
 
 ```bash
 ./copy_files_new_folder.sh App_Frontend
-./cleanup_copied_files.sh copied_files_App_Frontend
+./cleanup_copied_files.sh copied_files_App_Frontend --mode frontend
 
 ./copy_files_new_folder.sh App_Backend
-./cleanup_copied_files.sh copied_files_App_Backend
+./cleanup_copied_files.sh copied_files_App_Backend --mode backend
 ```

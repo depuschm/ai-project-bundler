@@ -5,5 +5,5 @@ PROJECT=App_Frontend
 COPIED="./copied_files_${PROJECT}"
 
 ./copy_files_new_folder.sh "./${PROJECT}"
-./cleanup_copied_files.sh "$COPIED"
+./cleanup_copied_files.sh "$COPIED" --mode frontend
 ./bundle_files.sh "$COPIED" --by-extension --suffix frontend --max-size 800
