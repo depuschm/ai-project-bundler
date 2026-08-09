@@ -1,6 +1,6 @@
 # cleanup_copied_files.sh
 
-Deletes files from a copied folder according to a named ruleset — which extensions and filename patterns to delete are defined in a config file (`cleanup_rules.json`), not hardcoded in the script. Run this after `copy_files_new_folder.sh`.
+Deletes files from a copied folder according to a named ruleset — which extensions and filename patterns to delete are defined in a config file (`cleanup_rules.json`), not hardcoded in the script. The built-in `frontend` and `backend` modes are tuned for a **React** frontend and an **ASP.NET Core** backend respectively; add your own mode for a different stack. Run this after `copy_files_new_folder.sh`.
 
 ---
 
@@ -73,15 +73,17 @@ If you don't pass `--mode`, the script falls back to guessing from the folder na
 
 ## What gets deleted (default config)
 
-**`frontend`**:
+**`frontend`** — optimized for a **React** app:
 - Images: `.png`, `.jpg`/`.jpeg`, `.svg`, `.ico`
 - Fonts: `.woff2`, `.ttf`
 - Audio: `.wav`, `.mp3`
 - Documents: `.pdf`
 
-**`backend`**:
-- Migration files (files starting with a date, e.g. `20260308022512_...`)
+**`backend`** — optimized for an **ASP.NET Core** app:
+- EF Core migration files (files starting with a date, e.g. `20260308022512_...`)
 - `launchSettings.json` (contains secrets)
+
+Building something else — Vue, Django, Rails? Copy one of these blocks in `cleanup_rules.json`, rename the key, and adjust the extensions/patterns to fit that stack's conventions.
 
 ---
 

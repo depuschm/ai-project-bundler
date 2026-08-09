@@ -55,14 +55,15 @@ Each script also has its own README with full usage details and examples.
 
 ### 🧹 What gets cleaned up
 
-Cleanup rules are named modes defined in [`cleanup_rules.json`](cleanup_rules.json), selected with `--mode`:
+Cleanup rules are named modes defined in [`cleanup_rules.json`](cleanup_rules.json), selected with `--mode`. The two built-in modes are tuned for a specific stack:
 
-**`frontend`** — images, fonts, audio, and PDFs (large, non-code binary assets):
+**`frontend`** — optimized for a **React** app:
 `.png` `.jpg/.jpeg` `.svg` `.ico` `.woff2` `.ttf` `.wav` `.mp3` `.pdf`
 
-**`backend`** — dated migration files (e.g. `20260308022512_InitialCreate.cs`) and `launchSettings.json` (which often contains secrets)
+**`backend`** — optimized for an **ASP.NET Core** app:
+dated EF Core migration files (e.g. `20260308022512_InitialCreate.cs`) and `launchSettings.json` (which often contains secrets)
 
-Want a `mobile` or `docs` ruleset too? Add a new key to `cleanup_rules.json` and pass `--mode mobile` — no script changes needed. If `--mode` is omitted, the script falls back to guessing from the folder name and prints a warning; see the [cleanup script README](cleanup_copied_files_README.md) for details.
+Using a different stack? Add a new key to `cleanup_rules.json` tailored to it and pass `--mode <that key>` — no script changes needed. If `--mode` is omitted, the script falls back to guessing from the folder name and prints a warning; see the [cleanup script README](cleanup_copied_files_README.md) for details.
 
 ### 📦 Bundling options
 
