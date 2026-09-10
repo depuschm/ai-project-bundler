@@ -139,6 +139,28 @@ fi
 # created. The bundling functions run inside $(...), so an exit there would
 # only kill the subshell — and under --strict we must fail without having
 # written a partial bundle that looks complete.
+# A keep rule that matches nothing is almost always a typo, and this key fails
+# in the dangerous direction: a mistake in an ignore rule leaves a file in the
+# bundle, while a mistake here drops a file the user believed was protected.
+# Checked in the parent shell — the bundling functions run inside $(...), so
+# hits recorded there would not survive.
+report_unused_keep_rules() {
+    [[ -n "$MODE" ]] || return 0
+    local rule f found
+    for rule in "${KEEP[@]}"; do
+        [[ -z "$rule" ]] && continue
+        found=false
+        while IFS= read -r -d '' f; do
+            if [[ "$(basename "$f")" =~ $rule ]]; then found=true; break; fi
+        done < <(find "$SOURCE_DIR" ${RULES_PRUNE_ARGS[@]+"${RULES_PRUNE_ARGS[@]}"} \
+                      -type f -not -path "${OUTPUT_ABS}/*" -print0)
+        if [[ "$found" == false ]]; then
+            echo "⚠️  keep rule '$rule' matches no file — check it for typos." >&2
+            echo "    Anything it was meant to protect has been left out." >&2
+        fi
+    done
+}
+
 UNREADABLE=0
 while IFS= read -r -d '' f; do
     [[ -r "$f" ]] && continue
@@ -353,6 +375,7 @@ if [[ "$BY_EXTENSION" == false ]]; then
     (( UNREADABLE > 0 )) && echo "Unreadable: $UNREADABLE file(s) — NOT in the bundle" >&2
     (( ignored > 0 )) && echo "Ignored by mode '$MODE': $ignored file(s)"
     echo "Output folder: $OUTPUT_DIR"
+    report_unused_keep_rules
     # Non-zero so a caller notices the bundle is incomplete. The bundle is
     # still written: one stray artifact should not cost you the whole run.
     # Written as an if, not `(( ... )) && exit 1`: a false arithmetic test has
@@ -425,6 +448,7 @@ if [[ "$BY_EXTENSION" == true ]]; then
     (( UNREADABLE > 0 )) && echo "Unreadable: $UNREADABLE file(s) — NOT in the bundle" >&2
     (( total_ignored > 0 )) && echo "Ignored by mode '$MODE': $total_ignored file(s)"
     echo "Output folder: $OUTPUT_DIR"
+    report_unused_keep_rules
     # Non-zero so a caller notices the bundle is incomplete. The bundle is
     # still written: one stray artifact should not cost you the whole run.
     # Written as an if, not `(( ... )) && exit 1`: a false arithmetic test has
