@@ -42,8 +42,8 @@ Usage: ./bundle_files.sh <folder> [output_file.md] [options]
   --by-extension      Write one .md per file extension
   --suffix <name>     Append a suffix to all output filenames
   --max-size <kb>     Split output into numbered parts past this size
-  --strict            Fail immediately if a file cannot be read, instead of
-                       warning and carrying on
+  --strict            Fail before writing anything if a file cannot be read,
+                       instead of warning and carrying on
   --mode <name>       Apply a ruleset from the config while walking, so
                        excluded directories and files are never read
   --rules <file>      Path to the ruleset config
@@ -55,8 +55,17 @@ Examples:
   ./bundle_files.sh ./App_Frontend --mode frontend frontend.md
   ./bundle_files.sh ./App_Frontend --mode frontend --by-extension --max-size 800
 EOF
-    exit 1
+    exit "${1:-1}"
 }
+
+# Checked before $1 is consumed as the source directory, otherwise
+# `bundle_files.sh --help` treats --help as a folder name and reports that it
+# is not a valid directory.
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help) usage 0 ;;
+    esac
+done
 
 shift || true
 while [[ $# -gt 0 ]]; do
@@ -89,7 +98,6 @@ while [[ $# -gt 0 ]]; do
         --strict)
             STRICT=true
             ;;
-        -h|--help) usage ;;
         # Anything else beginning with - is a mistyped flag. Falling through to
         # OUTPUT_FILE would silently turn --by-extention into an output called
         # "--by-extention.md" while quietly running in single mode.
