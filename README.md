@@ -15,7 +15,8 @@ Nothing is copied. Nothing is deleted.
 - **Skips dependencies properly.** `node_modules`, `.git`, `bin`, `obj` and friends are pruned during the walk, so they're never read. On a real project this is the difference between a nine-second run producing 702 files and a 58ms run producing the 2 you wanted.
 - **Single file or split by extension.** Bundle everything into one `.md`, or organize output into `tsx.md`, `css.md`, `json.md`, etc.
 - **Handles large codebases gracefully.** Auto-splits output into numbered parts when it exceeds a size limit you set.
-- **Reads, never writes.** The default flow doesn't copy or delete anything in your project — it only writes the bundle. Never overwrites an existing output folder either.
+- **Reads, never writes.** Nothing in your project is copied or deleted — the only thing written is the bundle. It won't overwrite an existing output folder either.
+- **Never silently incomplete.** A file it can't read is reported, counted on its own line, and makes the run exit non-zero, so a missing source file can't slip past unnoticed.
 - **No dependencies.** Just bash and coreutils. Nothing to install.
 
 ---
@@ -102,7 +103,19 @@ Using a different stack? Add a key to `rules.json` and pass `--mode <that key>` 
 
 # No --mode at all: bundle every file, no filtering
 ./bundle_files.sh ./some_folder
+
+# Fail before writing anything if any file can't be read
+./bundle_files.sh ./App_Frontend --mode frontend --strict
 ```
+
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Everything readable was bundled |
+| `1` | Something went wrong, or a file couldn't be read and is missing from the bundle |
+
+A `1` from an unreadable file still leaves a usable bundle behind — it's a signal that the bundle is incomplete, not that nothing was produced. `--strict` turns the same situation into a hard failure with no output folder created.
 
 Every file gets a heading with its relative path directly above a fenced, language-tagged code block — clean and easy for an LLM (or a human) to skim.
 
