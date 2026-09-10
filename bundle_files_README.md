@@ -2,7 +2,7 @@
 
 Bundles files from a folder into a `.md` file ready to upload as project knowledge to an AI assistant (Claude, ChatGPT, Gemini, etc.).
 
-Point it straight at your source tree with `--mode` and it filters as it walks — excluded directories are pruned, rule-matched files are skipped, and nothing is copied or deleted. Without `--mode` it bundles every file it finds, which is what you want for a folder you've already curated by hand.
+Point it straight at your source tree with `--mode` and it filters as it walks — excluded directories are pruned, rule-matched files are skipped, and your source tree is left untouched. Without `--mode` it bundles every file it finds, which is what you want for a folder you've already curated by hand.
 
 - Use `--by-extension` to create one `.md` per file extension.
 - Use `--suffix <name>` to add a suffix to all output filenames.

@@ -4,8 +4,6 @@
 
 Keeping an AI assistant's project knowledge in sync with a real codebase is tedious: you don't want binary assets, secrets, dependencies, or noisy migration files clogging up the context, and manually copy-pasting files gets old fast. `ai-project-bundler` walks your source tree once, skipping everything a ruleset tells it to ignore, and writes what's left as Markdown.
 
-Nothing is copied. Nothing is deleted.
-
 ---
 
 ## ✨ Why you'd want this
@@ -15,7 +13,7 @@ Nothing is copied. Nothing is deleted.
 - **Skips dependencies properly.** `node_modules`, `.git`, `bin`, `obj` and friends are pruned during the walk, so they're never read. On a real project this is the difference between a nine-second run producing 702 files and a 58ms run producing the 2 you wanted.
 - **Single file or split by extension.** Bundle everything into one `.md`, or organize output into `tsx.md`, `css.md`, `json.md`, etc.
 - **Handles large codebases gracefully.** Auto-splits output into numbered parts when it exceeds a size limit you set.
-- **Reads, never writes.** Nothing in your project is copied or deleted — the only thing written is the bundle. It won't overwrite an existing output folder either.
+- **Your project is never modified.** No working copy, no deletions — the only thing written is the bundle, and it won't overwrite an existing output folder.
 - **Never silently incomplete.** A file it can't read is reported, counted on its own line, and makes the run exit non-zero, so a missing source file can't slip past unnoticed.
 - **No dependencies.** Just bash and coreutils. Nothing to install.
 
@@ -54,7 +52,7 @@ Files skipped by a rule are reported, so nothing disappears quietly:
   [BUNDLED]  src/App.tsx → App_Backend.md
 ```
 
-Nothing is copied and nothing is deleted — the only thing written is the output folder. Point it at a working copy instead of your source if you want, but there's no need to.
+Point it at a working copy instead of your source if you prefer, but there's no need to.
 
 [`bundle_files.sh`](bundle_files_README.md) has its own README with full usage details and examples.
 
