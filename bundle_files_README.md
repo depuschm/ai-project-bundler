@@ -45,11 +45,19 @@ Reads the `frontend` ruleset from `rules.json`. Directories in `exclude_dirs` ar
 Skipped files are reported so nothing vanishes silently:
 
 ```
+Source directory : /path/to/App_Frontend
+Ruleset          : frontend (rules.json)
+Scanning         : 5 file(s) found
+
+Output folder    : App_Frontend_bundled
+
   [IGNORED]  assets/Logo.PNG  (extension: .png)
   [BUNDLED]  src/App.tsx → App_Frontend.md
 Done. Bundled: 4  |  Skipped: 0 binary file(s)
 Ignored by mode 'frontend': 1 file(s)
 ```
+
+The `Scanning` line covers a single pass that checks every file is readable and probes its type in one batch, before anything is written.
 
 Rules are loaded by [`rules_lib.sh`](rules_lib.sh). See the [main README](README.md#-what-gets-left-out) for the ruleset format.
 
