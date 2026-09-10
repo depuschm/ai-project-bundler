@@ -15,6 +15,11 @@ source "${SCRIPT_DIR}/rules_lib.sh"
 # unchanged: bundle every file found.
 EXCLUDE_DIRS=(); EXTENSIONS=(); PATTERNS=(); KEEP=()
 RULES_PRUNE_ARGS=()
+# Absolute path of the output folder. When bundling a directory that contains
+# the output folder (e.g. bundling "."), --by-extension re-walks the tree once
+# per extension, so a later bucket would otherwise ingest bundles written by an
+# earlier one — md.md swallowing sh.md and json.md whole.
+OUTPUT_ABS=""
 MODE=""
 CONFIG_FILE="${SCRIPT_DIR}/rules.json"
 ignored=0
@@ -251,7 +256,8 @@ bundle_files() {
         echo "  [BUNDLED]  $relative_path → $(basename "$current_file")" >&2
         (( bundled++ )) || true
 
-    done < <(find "$SOURCE_DIR" ${RULES_PRUNE_ARGS[@]+"${RULES_PRUNE_ARGS[@]}"} -type f -print0 | sort -z)
+    done < <(find "$SOURCE_DIR" ${RULES_PRUNE_ARGS[@]+"${RULES_PRUNE_ARGS[@]}"} \
+                  -type f -not -path "${OUTPUT_ABS}/*" -print0 | sort -z)
 
     # Returned rather than left in globals: this function is called inside
     # $(...), so any counter incremented here dies with the subshell.
@@ -268,6 +274,7 @@ if [[ "$BY_EXTENSION" == false ]]; then
     fi
 
     mkdir "$OUTPUT_DIR"
+    OUTPUT_ABS="$(cd "$OUTPUT_DIR" && pwd)"
 
     BASE_NAME="${OUTPUT_FILE:-$FOLDER_NAME}"
     BASE_NAME="${BASE_NAME%.md}"  # strip .md if provided
@@ -303,6 +310,7 @@ if [[ "$BY_EXTENSION" == true ]]; then
     fi
 
     mkdir "$OUTPUT_DIR"
+    OUTPUT_ABS="$(cd "$OUTPUT_DIR" && pwd)"
 
     echo "Source directory : $SOURCE_DIR"
     echo "Output folder    : $OUTPUT_DIR"
@@ -327,7 +335,8 @@ if [[ "$BY_EXTENSION" == true ]]; then
         [[ "$filename" == "$ext" ]] && ext="no_extension"
         ext="${ext,,}"   # one bucket per extension, regardless of its case
         seen_exts["$ext"]=1
-    done < <(find "$SOURCE_DIR" ${RULES_PRUNE_ARGS[@]+"${RULES_PRUNE_ARGS[@]}"} -type f -print0)
+    done < <(find "$SOURCE_DIR" ${RULES_PRUNE_ARGS[@]+"${RULES_PRUNE_ARGS[@]}"} \
+                  -type f -not -path "${OUTPUT_ABS}/*" -print0)
 
     total_bundled=0
     total_skipped=0
