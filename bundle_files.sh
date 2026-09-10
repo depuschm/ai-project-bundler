@@ -161,11 +161,36 @@ report_unused_keep_rules() {
     done
 }
 
+# ── Elapsed time ─────────────────────────────────────────────────────────────
+# EPOCHREALTIME (bash 5) gives sub-second resolution with no subprocess.
+# `date +%s%N` is not an option: BSD date, which is what macOS ships, does not
+# support %N and would return a literal "N". Falls back to SECONDS on bash 4.
+now_ms() {
+    if [[ -n "${EPOCHREALTIME:-}" ]]; then
+        local t="${EPOCHREALTIME/[.,]/}"   # microseconds, locale may use a comma
+        echo $(( t / 1000 ))
+    else
+        echo $(( SECONDS * 1000 ))
+    fi
+}
+
+format_elapsed() {
+    local ms=$(( $(now_ms) - START_MS ))
+    if (( ms < 1000 )); then
+        printf '%sms' "$ms"
+    else
+        printf '%s.%02ds' "$(( ms / 1000 ))" "$(( (ms % 1000) / 10 ))"
+    fi
+}
+
+START_MS="$(now_ms)"
+
 echo "Source directory : $SOURCE_DIR"
 [[ -n "$MODE" ]] && echo "Ruleset          : $MODE ($CONFIG_FILE)"
 printf 'Scanning         : '
 
 UNREADABLE=0
+UNREADABLE_PATHS=()
 scanned=0
 ALL_FILES=()
 declare -A FILE_IS_TEXT
@@ -177,14 +202,23 @@ while IFS= read -r -d '' f; do
         continue
     fi
     if [[ "$STRICT" == true ]]; then
+        # The "Scanning : " label is a partial line; close it before the error
+        # so the message doesn't get appended to it.
+        printf '\n' >&2
         echo "Error: cannot read '${f#"$SOURCE_DIR"/}'." >&2
         echo "       Running with --strict, so nothing was written." >&2
         exit 1
     fi
-    echo "  [WARN]     ${f#"$SOURCE_DIR"/}  (unreadable — not bundled)" >&2
+    # Held until the scan line is finished, for the same reason.
+    UNREADABLE_PATHS+=("${f#"$SOURCE_DIR"/}")
     (( UNREADABLE++ )) || true
 done < <(find "$SOURCE_DIR" ${RULES_PRUNE_ARGS[@]+"${RULES_PRUNE_ARGS[@]}"} -type f -print0)
 printf '%s file(s) found\n' "$scanned"
+
+for _p in ${UNREADABLE_PATHS[@]+"${UNREADABLE_PATHS[@]}"}; do
+    echo "  [WARN]     $_p  (unreadable — not bundled)" >&2
+done
+unset _p
 
 # One `file` process for the whole tree instead of one per file. On a few
 # thousand files that is the difference between ~13s and ~1s. Falls back to
@@ -424,6 +458,7 @@ if [[ "$BY_EXTENSION" == false ]]; then
     (( UNREADABLE > 0 )) && echo "Unreadable: $UNREADABLE file(s) — NOT in the bundle" >&2
     (( ignored > 0 )) && echo "Ignored by mode '$MODE': $ignored file(s)"
     echo "Output folder: $OUTPUT_DIR"
+    echo "Elapsed: $(format_elapsed)"
     report_unused_keep_rules
     # Non-zero so a caller notices the bundle is incomplete. The bundle is
     # still written: one stray artifact should not cost you the whole run.
@@ -496,6 +531,7 @@ if [[ "$BY_EXTENSION" == true ]]; then
     (( UNREADABLE > 0 )) && echo "Unreadable: $UNREADABLE file(s) — NOT in the bundle" >&2
     (( total_ignored > 0 )) && echo "Ignored by mode '$MODE': $total_ignored file(s)"
     echo "Output folder: $OUTPUT_DIR"
+    echo "Elapsed: $(format_elapsed)"
     report_unused_keep_rules
     # Non-zero so a caller notices the bundle is incomplete. The bundle is
     # still written: one stray artifact should not cost you the whole run.
