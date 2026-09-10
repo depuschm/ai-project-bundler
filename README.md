@@ -112,8 +112,8 @@ Using a different stack? Add a key to `rules.json` and pass `--mode <that key>` 
 
 | Code | Meaning |
 |---|---|
-| `0` | Everything readable was bundled |
-| `1` | Something went wrong, or a file couldn't be read and is missing from the bundle |
+| `0` | Success — everything was bundled, or `--help` was asked for |
+| `1` | A file couldn't be read and is missing from the bundle, or the run failed outright (bad arguments, missing folder, output folder already exists) |
 
 A `1` from an unreadable file still leaves a usable bundle behind — it's a signal that the bundle is incomplete, not that nothing was produced. `--strict` turns the same situation into a hard failure with no output folder created.
 
