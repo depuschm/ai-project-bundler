@@ -150,4 +150,4 @@ App_Backend/  ──┘        and skipping ignored files       ready to upload
 
 ## 📄 License
 
-MIT — do whatever you'd like with it.
+MIT — see [LICENSE](LICENSE). Do whatever you'd like with it.

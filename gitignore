@@ -1,0 +1,6 @@
+# Bundles produced by bundle_files.sh — regenerate them, don't commit them.
+# They are large, they duplicate the source, and they go stale immediately.
+*_bundled/
+
+# Left over from older versions of this tool, which copied before bundling.
+copied_files_*/
