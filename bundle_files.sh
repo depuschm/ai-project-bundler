@@ -23,6 +23,7 @@ OUTPUT_ABS=""
 MODE=""
 CONFIG_FILE="${SCRIPT_DIR}/rules.json"
 ignored=0
+STRICT=false
 
 # ── Configuration ────────────────────────────────────────────────────────────
 SOURCE_DIR="${1:-}"
@@ -41,6 +42,8 @@ Usage: ./bundle_files.sh <folder> [output_file.md] [options]
   --by-extension      Write one .md per file extension
   --suffix <name>     Append a suffix to all output filenames
   --max-size <kb>     Split output into numbered parts past this size
+  --strict            Fail immediately if a file cannot be read, instead of
+                       warning and carrying on
   --mode <name>       Apply a ruleset from the config while walking, so
                        excluded directories and files are never read
   --rules <file>      Path to the ruleset config
@@ -83,6 +86,9 @@ while [[ $# -gt 0 ]]; do
             shift
             CONFIG_FILE="$1"
             ;;
+        --strict)
+            STRICT=true
+            ;;
         -h|--help) usage ;;
         # Anything else beginning with - is a mistyped flag. Falling through to
         # OUTPUT_FILE would silently turn --by-extention into an output called
@@ -119,6 +125,23 @@ if [[ -n "$MODE" ]]; then
     rules_load_mode "$MODE" "$CONFIG_FILE" || exit 1
     rules_build_prune_args
 fi
+
+# ── Pre-flight: find unreadable files before writing anything ────────────────
+# Deliberately done here, in the parent shell, and before the output folder is
+# created. The bundling functions run inside $(...), so an exit there would
+# only kill the subshell — and under --strict we must fail without having
+# written a partial bundle that looks complete.
+UNREADABLE=0
+while IFS= read -r -d '' f; do
+    [[ -r "$f" ]] && continue
+    if [[ "$STRICT" == true ]]; then
+        echo "Error: cannot read '${f#"$SOURCE_DIR"/}'." >&2
+        echo "       Running with --strict, so nothing was written." >&2
+        exit 1
+    fi
+    echo "  [WARN]     ${f#"$SOURCE_DIR"/}  (unreadable — not bundled)" >&2
+    (( UNREADABLE++ )) || true
+done < <(find "$SOURCE_DIR" ${RULES_PRUNE_ARGS[@]+"${RULES_PRUNE_ARGS[@]}"} -type f -print0)
 
 # ── Detect language for code block ───────────────────────────────────────────
 get_language() {
@@ -255,12 +278,12 @@ bundle_files() {
 
         # An unreadable file also fails the type check below, where it would be
         # reported as binary. Say what actually happened instead — permissions
-        # are fixable, "binary" invites the reader to shrug.
-        if [[ ! -r "$file" ]]; then
-            echo "  [SKIP]     $relative_path  (unreadable)" >&2
-            (( skipped++ )) || true
-            continue
-        fi
+        # are fixable, "binary" invites the reader to shrug. Counted apart from
+        # binaries because the two mean opposite things: a binary is correctly
+        # excluded, an unreadable file is source silently missing from the
+        # bundle. That is what makes the run exit non-zero.
+        # Already reported by the pre-flight scan; just leave it out.
+        [[ -r "$file" ]] || continue
 
         # Skip binary files. -b prints the type only; without it the file's
         # own path is part of the matched string, so any file inside a
@@ -319,8 +342,17 @@ if [[ "$BY_EXTENSION" == false ]]; then
     echo ""
     echo "───────────────────────────────────"
     echo "Done. Bundled: $bundled  |  Skipped: $skipped binary file(s)"
+    (( UNREADABLE > 0 )) && echo "Unreadable: $UNREADABLE file(s) — NOT in the bundle" >&2
     (( ignored > 0 )) && echo "Ignored by mode '$MODE': $ignored file(s)"
     echo "Output folder: $OUTPUT_DIR"
+    # Non-zero so a caller notices the bundle is incomplete. The bundle is
+    # still written: one stray artifact should not cost you the whole run.
+    # Written as an if, not `(( ... )) && exit 1`: a false arithmetic test has
+    # exit status 1, and as the last statement in the block that would become
+    # the script's status, failing every clean run.
+    if (( UNREADABLE > 0 )); then
+        exit 1
+    fi
 fi
 
 # ── MODE: one .md per extension ──────────────────────────────────────────────
@@ -346,6 +378,8 @@ if [[ "$BY_EXTENSION" == true ]]; then
     total_ignored=0
     while IFS= read -r -d '' file; do
         filename="$(basename "$file")"
+        # Counted here, once, rather than summed from the per-bucket passes.
+        [[ -r "$file" ]] || continue
         if [[ -n "$MODE" ]] && ! rules_should_keep "$filename" \
            && rules_matches "$filename"; then
             # Counted here rather than summed from each per-extension pass:
@@ -366,7 +400,7 @@ if [[ "$BY_EXTENSION" == true ]]; then
 
     for ext in "${!seen_exts[@]}"; do
         current_part=1
-        read -r bundled skipped ignored <<< "$(bundle_files "$OUTPUT_DIR/${ext}${SUFFIX}" "$ext")"
+        read -r bundled skipped ignored _unused <<< "$(bundle_files "$OUTPUT_DIR/${ext}${SUFFIX}" "$ext")"
 
         # If no splitting occurred, remove the _1 suffix
         if [[ -f "${OUTPUT_DIR}/${ext}${SUFFIX}_1.md" && ! -f "${OUTPUT_DIR}/${ext}${SUFFIX}_2.md" ]]; then
@@ -380,6 +414,17 @@ if [[ "$BY_EXTENSION" == true ]]; then
     echo ""
     echo "───────────────────────────────────"
     echo "Done. Bundled: $total_bundled  |  Skipped: $total_skipped binary file(s)"
+    (( UNREADABLE > 0 )) && echo "Unreadable: $UNREADABLE file(s) — NOT in the bundle" >&2
     (( total_ignored > 0 )) && echo "Ignored by mode '$MODE': $total_ignored file(s)"
     echo "Output folder: $OUTPUT_DIR"
+    # Non-zero so a caller notices the bundle is incomplete. The bundle is
+    # still written: one stray artifact should not cost you the whole run.
+    # Written as an if, not `(( ... )) && exit 1`: a false arithmetic test has
+    # exit status 1, and as the last statement in the block that would become
+    # the script's status, failing every clean run.
+    if (( UNREADABLE > 0 )); then
+        exit 1
+    fi
 fi
+
+exit 0

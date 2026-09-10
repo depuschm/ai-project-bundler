@@ -17,7 +17,7 @@ Point it straight at your source tree with `--mode` and it filters as it walks �
 chmod +x bundle_files.sh
 
 # 2. Run it
-./bundle_files.sh <folder> [output_file.md] [--mode <name>] [--rules <file>] [--by-extension] [--suffix <name>] [--max-size <kb>]
+./bundle_files.sh <folder> [output_file.md] [--mode <name>] [--rules <file>] [--by-extension] [--suffix <name>] [--max-size <kb>] [--strict]
 ```
 
 | Argument | Default | Description |
@@ -29,6 +29,7 @@ chmod +x bundle_files.sh
 | `--suffix <name>` | none | Adds a suffix to all output filenames |
 | `--mode <name>` | none | Apply a ruleset while walking. Without it, every file is bundled |
 | `--rules <file>` | `rules.json` next to the script | Path to the ruleset config |
+| `--strict` | off | Fail before writing anything if any file can't be read |
 | `-h`, `--help` | — | Show usage and exit |
 
 ---
@@ -146,6 +147,7 @@ App_Frontend_bundled/
 
 - Each file gets a `##` heading with its full relative path, directly above its code block.
 - Binary files (images, fonts, etc.) are automatically skipped.
+- Files the process cannot read are reported as `[WARN] ... (unreadable — not bundled)`, counted separately from binaries, and make the run exit non-zero. The bundle is still written — one stray root-owned artifact shouldn't cost you a whole run — but you can't end up with a silently incomplete bundle. Pass `--strict` to fail before anything is written instead.
 - The correct code language tag is auto-detected from the file extension.
 - The script will **not** overwrite an existing output file or folder.
 - Unknown options, missing values and stray extra arguments are rejected with a usage message, so a typo like `--by-extention` fails loudly instead of being silently treated as an output filename.
