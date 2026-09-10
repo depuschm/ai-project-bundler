@@ -161,9 +161,21 @@ report_unused_keep_rules() {
     done
 }
 
+echo "Source directory : $SOURCE_DIR"
+[[ -n "$MODE" ]] && echo "Ruleset          : $MODE ($CONFIG_FILE)"
+printf 'Scanning         : '
+
 UNREADABLE=0
+scanned=0
+ALL_FILES=()
+declare -A FILE_IS_TEXT
+TYPES_OK=false
 while IFS= read -r -d '' f; do
-    [[ -r "$f" ]] && continue
+    (( scanned++ )) || true
+    if [[ -r "$f" ]]; then
+        ALL_FILES+=("$f")
+        continue
+    fi
     if [[ "$STRICT" == true ]]; then
         echo "Error: cannot read '${f#"$SOURCE_DIR"/}'." >&2
         echo "       Running with --strict, so nothing was written." >&2
@@ -172,6 +184,26 @@ while IFS= read -r -d '' f; do
     echo "  [WARN]     ${f#"$SOURCE_DIR"/}  (unreadable — not bundled)" >&2
     (( UNREADABLE++ )) || true
 done < <(find "$SOURCE_DIR" ${RULES_PRUNE_ARGS[@]+"${RULES_PRUNE_ARGS[@]}"} -type f -print0)
+printf '%s file(s) found\n' "$scanned"
+
+# One `file` process for the whole tree instead of one per file. On a few
+# thousand files that is the difference between ~13s and ~1s. Falls back to
+# per-file probing if the batch output doesn't line up — `file -f -` reads
+# newline-separated names, so a filename containing a newline would desync it.
+if (( ${#ALL_FILES[@]} > 0 )); then
+    mapfile -t _types < <(printf '%s\n' "${ALL_FILES[@]}" | file -b -f - 2>/dev/null)
+    if (( ${#_types[@]} == ${#ALL_FILES[@]} )); then
+        for _i in "${!ALL_FILES[@]}"; do
+            case "${_types[_i]}" in
+                *text*|*empty*|*JSON*|*ASCII*) FILE_IS_TEXT["${ALL_FILES[_i]}"]=1 ;;
+                *)                             FILE_IS_TEXT["${ALL_FILES[_i]}"]=0 ;;
+            esac
+        done
+        TYPES_OK=true
+    fi
+    unset _types _i
+fi
+echo
 
 # ── Detect language for code block ───────────────────────────────────────────
 get_language() {
@@ -209,10 +241,20 @@ get_language() {
 # wrapping in one backtick more than the longest run inside is always safe.
 fence_for() {
     local file="$1" longest n=3
-    longest="$(grep -oE '^`+' "$file" 2>/dev/null \
-        | awk '{ if (length($0) > m) m = length($0) } END { print m+0 }')"
+    # One awk rather than grep piped into awk: this runs once per file, and on
+    # a few thousand files the extra process costs seconds. The backtick is
+    # written as its octal escape \140 throughout, so the awk source contains
+    # none literally and cannot unbalance the surrounding shell quoting.
+    longest="$(awk '
+        BEGIN { bt = "\140" }
+        substr($0, 1, 1) == bt {
+            i = 1
+            while (substr($0, i, 1) == bt) i++
+            if (i - 1 > m) m = i - 1
+        }
+        END { print m+0 }' "$file" 2>/dev/null)"
     (( longest >= n )) && n=$(( longest + 1 ))
-    printf '%*s' "$n" '' | tr ' ' '`'
+    printf '%*s' "$n" '' | tr ' ' '\140'
 }
 
 # ── Build a file block as a string ───────────────────────────────────────────
@@ -315,10 +357,18 @@ bundle_files() {
         # Already reported by the pre-flight scan; just leave it out.
         [[ -r "$file" ]] || continue
 
-        # Skip binary files. -b prints the type only; without it the file's
-        # own path is part of the matched string, so any file inside a
-        # directory whose name contains "text" is misdetected as text.
-        if ! file -b "$file" | grep -qE 'text|empty|JSON|ASCII'; then
+        # Binary check. Answered from the batch probe done during the scan;
+        # the per-file fallback keeps -b so the file's own path is not part of
+        # the matched string — a directory named e.g. "context" contains "text"
+        # and would make every binary inside it look like a text file.
+        if [[ "$TYPES_OK" == true ]]; then
+            _is_text="${FILE_IS_TEXT["$file"]:-0}"
+        elif file -b "$file" | grep -qE 'text|empty|JSON|ASCII'; then
+            _is_text=1
+        else
+            _is_text=0
+        fi
+        if [[ "$_is_text" != 1 ]]; then
             echo "  [SKIP]     $relative_path  (binary)" >&2
             (( skipped++ )) || true
             continue
@@ -356,7 +406,6 @@ if [[ "$BY_EXTENSION" == false ]]; then
     BASE_NAME="${BASE_NAME%.md}"  # strip .md if provided
     BASE_NAME="${OUTPUT_DIR}/${BASE_NAME}${SUFFIX}"
 
-    echo "Source directory : $SOURCE_DIR"
     echo "Output folder    : $OUTPUT_DIR"
     [[ "$MAX_SIZE_KB" -gt 0 ]] && echo "Max file size    : ${MAX_SIZE_KB}KB"
     [[ -n "$SUFFIX" ]] && echo "Suffix           : ${SUFFIX#_}"
@@ -398,7 +447,6 @@ if [[ "$BY_EXTENSION" == true ]]; then
     mkdir "$OUTPUT_DIR"
     OUTPUT_ABS="$(cd "$OUTPUT_DIR" && pwd)"
 
-    echo "Source directory : $SOURCE_DIR"
     echo "Output folder    : $OUTPUT_DIR"
     [[ "$MAX_SIZE_KB" -gt 0 ]] && echo "Max file size    : ${MAX_SIZE_KB}KB"
     [[ -n "$SUFFIX" ]] && echo "Suffix           : ${SUFFIX#_}"
