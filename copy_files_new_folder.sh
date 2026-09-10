@@ -48,11 +48,11 @@ for file in "${files[@]}"; do
     relative_path="${file#"$SOURCE_DIR"/}"
     dest="$TARGET_DIR/$relative_path"
 
-    # Paths are preserved now, so this should not fire. It still can on a
-    # case-insensitive filesystem (macOS/Windows), where Switch.tsx and
-    # switch.tsx in the same folder are the same path. Warn, don't lose it.
+    # Preserved paths make this unreachable on a case-sensitive filesystem.
+    # Elsewhere (macOS, Windows) two names in one directory differing only in
+    # case resolve to the same path, and one file is lost. Report it.
     if [[ -e "$dest" ]]; then
-        echo "  [COLLISION] $relative_path  (case-insensitive filesystem — earlier copy overwritten)" >&2
+        echo "  [COLLISION] $relative_path  (name already taken — earlier copy overwritten)" >&2
         (( collisions++ )) || true
     fi
 

@@ -144,16 +144,16 @@ bundle_files() {
         if [[ -n "$filter_ext" ]]; then
             filename="$(basename "$file")"
             ext="${filename##*.}"
-            # Must mirror the extension-collection logic below, or files with no
-            # extension (Dockerfile, Makefile, LICENSE) are silently dropped.
+            # Must mirror the extension-collection logic below. Without this,
+            # extensionless files match no bucket and are silently dropped.
             [[ "$filename" == "$ext" ]] && ext="no_extension"
             ext="${ext,,}"
             [[ "$ext" != "$filter_ext" ]] && continue
         fi
 
-        # Skip binary files. Use -b so the file's own path is not part of the
-        # matched string: a folder like src/context/ contains "text" and would
-        # otherwise make every binary file inside it look like a text file.
+        # Skip binary files. -b prints the type only; without it the file's
+        # own path is part of the matched string, so any file inside a
+        # directory whose name contains "text" is misdetected as text.
         if ! file -b "$file" | grep -qE 'text|empty|JSON|ASCII'; then
             echo "  [SKIP]     $relative_path  (binary)" >&2
             (( skipped++ )) || true
@@ -227,7 +227,7 @@ if [[ "$BY_EXTENSION" == true ]]; then
         filename="$(basename "$file")"
         ext="${filename##*.}"
         [[ "$filename" == "$ext" ]] && ext="no_extension"
-        ext="${ext,,}"   # Legacy.TSX and switch.tsx share one bucket
+        ext="${ext,,}"   # one bucket per extension, regardless of its case
         seen_exts["$ext"]=1
     done < <(find "$SOURCE_DIR" -type f -print0)
 

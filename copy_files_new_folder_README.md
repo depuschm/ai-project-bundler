@@ -43,8 +43,8 @@ Both arguments are optional:
 
 ## Notes
 
-- Files are copied **recursively**, and the source folder's directory layout is **preserved** in the copy. This matters: a project will often have several files with the same name in different folders (`components/ui/switch.tsx`, `shared/switch.tsx`, `features/auth/Switch.tsx`). Flattening them into one folder would silently drop all but one.
-- Preserved paths also mean `bundle_files.sh` writes the real relative path as each file's heading (`## components/ui/switch.tsx`), which is far more useful context for an AI assistant than a bare filename.
-- On a **case-insensitive filesystem** (macOS, Windows), two files in the *same* folder differing only by case still collide. The script prints a `[COLLISION]` line to stderr and a summary warning rather than losing the file silently.
+- Files are copied **recursively**, and the source folder's directory layout is **preserved** in the copy. This matters because most projects reuse filenames across directories — `index.ts`, `types.ts`, `utils.ts`, `Button.tsx` — and flattening them into a single folder would silently drop all but one.
+- Preserved paths also mean `bundle_files.sh` uses the real relative path as each file's heading (`## src/components/Button.tsx`), which is far more useful context for an AI assistant than a bare filename.
+- On a **case-insensitive filesystem** (macOS, Windows), two files in the *same* directory whose names differ only in case resolve to one path and still collide. The script prints a `[COLLISION]` line to stderr plus a summary warning, rather than losing the file silently.
 - The new folder is always created in the **current directory** (where you run the script from), not inside the source folder.
 - The script will **not** overwrite an existing folder. If the target folder already exists, it exits with an error.
