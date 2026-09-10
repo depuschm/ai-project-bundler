@@ -253,6 +253,15 @@ bundle_files() {
             [[ "$ext" != "$filter_ext" ]] && continue
         fi
 
+        # An unreadable file also fails the type check below, where it would be
+        # reported as binary. Say what actually happened instead — permissions
+        # are fixable, "binary" invites the reader to shrug.
+        if [[ ! -r "$file" ]]; then
+            echo "  [SKIP]     $relative_path  (unreadable)" >&2
+            (( skipped++ )) || true
+            continue
+        fi
+
         # Skip binary files. -b prints the type only; without it the file's
         # own path is part of the matched string, so any file inside a
         # directory whose name contains "text" is misdetected as text.
