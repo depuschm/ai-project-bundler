@@ -11,7 +11,7 @@ Recursively copies all files from a folder into a new folder created in the curr
 chmod +x copy_files_new_folder.sh
 
 # 2. Run it
-./copy_files_new_folder.sh [source_folder] [new_folder_name]
+./copy_files_new_folder.sh [source_folder] [new_folder_name] [--mode <name>] [--rules <file>]
 ```
 
 Both arguments are optional:
@@ -20,6 +20,8 @@ Both arguments are optional:
 |---|---|---|
 | `source_folder` | current directory | The folder whose files you want to copy |
 | `new_folder_name` | `copied_files_<source_folder>` | Name of the new folder that will be created |
+| `--mode <name>` | none | Apply a ruleset's `exclude_dirs` while copying, so dependency folders are never copied |
+| `--rules <file>` | `cleanup_rules.json` next to the script | Path to the ruleset config |
 
 ---
 
@@ -38,6 +40,18 @@ Both arguments are optional:
 # Override the folder name manually
 ./copy_files_new_folder.sh App_Frontend my_custom_name
 ```
+
+---
+
+## Skipping dependencies with `--mode`
+
+```bash
+./copy_files_new_folder.sh ./App_Frontend --mode frontend
+```
+
+Without this, `node_modules` and `.git` are copied in full and then deleted by the cleanup step — thousands of files of pure waste. With it, `find` prunes those directories and never descends into them.
+
+If you don't need an intermediate folder at all, skip this script: `bundle_files.sh --mode` reads the source directly and copies nothing.
 
 ---
 

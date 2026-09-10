@@ -8,6 +8,18 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=rules_lib.sh
+source "${SCRIPT_DIR}/rules_lib.sh"
+
+# Rule state stays empty unless --mode is given, so the default behaviour is
+# unchanged: bundle every file found.
+EXCLUDE_DIRS=(); EXTENSIONS=(); PATTERNS=(); KEEP=()
+RULES_PRUNE_ARGS=()
+MODE=""
+CONFIG_FILE="${SCRIPT_DIR}/cleanup_rules.json"
+ignored=0
+
 # ── Configuration ────────────────────────────────────────────────────────────
 SOURCE_DIR="${1:-}"
 BY_EXTENSION=false
@@ -25,6 +37,10 @@ Usage: ./bundle_files.sh <folder> [output_file.md] [options]
   --by-extension      Write one .md per file extension
   --suffix <name>     Append a suffix to all output filenames
   --max-size <kb>     Split output into numbered parts past this size
+  --mode <name>       Apply a ruleset from the config while walking, so
+                       excluded directories and files are never read
+  --rules <file>      Path to the ruleset config
+                       (default: cleanup_rules.json next to this script)
   -h, --help          Show this message
 
 Examples:
@@ -52,6 +68,16 @@ while [[ $# -gt 0 ]]; do
             [[ $# -ge 2 ]] || { echo "Error: --suffix requires a value." >&2; usage; }
             shift
             SUFFIX="_$1"
+            ;;
+        --mode)
+            [[ $# -ge 2 ]] || { echo "Error: --mode requires a name." >&2; usage; }
+            shift
+            MODE="$1"
+            ;;
+        --rules)
+            [[ $# -ge 2 ]] || { echo "Error: --rules requires a file." >&2; usage; }
+            shift
+            CONFIG_FILE="$1"
             ;;
         -h|--help) usage ;;
         # Anything else beginning with - is a mistyped flag. Falling through to
@@ -84,6 +110,11 @@ fi
 
 SOURCE_DIR="$(cd "$SOURCE_DIR" && pwd)"
 FOLDER_NAME="$(basename "$SOURCE_DIR")"
+
+if [[ -n "$MODE" ]]; then
+    rules_load_mode "$MODE" "$CONFIG_FILE" || exit 1
+    rules_build_prune_args
+fi
 
 # ── Detect language for code block ───────────────────────────────────────────
 get_language() {
@@ -178,9 +209,20 @@ bundle_files() {
 
     local bundled=0
     local skipped=0
+    local ignored=0
 
     while IFS= read -r -d '' file; do
         relative_path="${file#$SOURCE_DIR/}"
+        filename="$(basename "$file")"
+
+        # Ruleset filter. Excluded directories are already pruned by find, so
+        # only name-based rules are checked here. A keep rule overrides them.
+        if [[ -n "$MODE" ]] && ! rules_should_keep "$filename" \
+           && rules_matches "$filename"; then
+            echo "  [IGNORED]  $relative_path  ($RULES_MATCH_REASON)" >&2
+            (( ignored++ )) || true
+            continue
+        fi
 
         # Filter by extension if specified
         if [[ -n "$filter_ext" ]]; then
@@ -210,9 +252,11 @@ bundle_files() {
         echo "  [BUNDLED]  $relative_path → $(basename "$current_file")" >&2
         (( bundled++ )) || true
 
-    done < <(find "$SOURCE_DIR" -type f -print0 | sort -z)
+    done < <(find "$SOURCE_DIR" ${RULES_PRUNE_ARGS[@]+"${RULES_PRUNE_ARGS[@]}"} -type f -print0 | sort -z)
 
-    echo "$bundled $skipped"
+    # Returned rather than left in globals: this function is called inside
+    # $(...), so any counter incremented here dies with the subshell.
+    echo "$bundled $skipped $ignored"
 }
 
 # ── MODE: single .md ─────────────────────────────────────────────────────────
@@ -236,7 +280,7 @@ if [[ "$BY_EXTENSION" == false ]]; then
     [[ -n "$SUFFIX" ]] && echo "Suffix           : ${SUFFIX#_}"
     echo ""
 
-    read -r bundled skipped <<< "$(bundle_files "$BASE_NAME")"
+    read -r bundled skipped ignored <<< "$(bundle_files "$BASE_NAME")"
 
     # If no splitting occurred, remove the _1 suffix
     if [[ -f "${BASE_NAME}_1.md" && ! -f "${BASE_NAME}_2.md" ]]; then
@@ -246,6 +290,7 @@ if [[ "$BY_EXTENSION" == false ]]; then
     echo ""
     echo "───────────────────────────────────"
     echo "Done. Bundled: $bundled  |  Skipped: $skipped binary file(s)"
+    (( ignored > 0 )) && echo "Ignored by mode '$MODE': $ignored file(s)"
     echo "Output folder: $OUTPUT_DIR"
 fi
 
@@ -268,20 +313,29 @@ if [[ "$BY_EXTENSION" == true ]]; then
 
     # Collect all unique extensions
     declare -A seen_exts
+    total_ignored=0
     while IFS= read -r -d '' file; do
         filename="$(basename "$file")"
+        if [[ -n "$MODE" ]] && ! rules_should_keep "$filename" \
+           && rules_matches "$filename"; then
+            # Counted here rather than summed from each per-extension pass:
+            # bundle_files re-walks the tree once per bucket, so accumulating
+            # there would count the same ignored file once per bucket.
+            (( total_ignored++ )) || true
+            continue
+        fi
         ext="${filename##*.}"
         [[ "$filename" == "$ext" ]] && ext="no_extension"
         ext="${ext,,}"   # one bucket per extension, regardless of its case
         seen_exts["$ext"]=1
-    done < <(find "$SOURCE_DIR" -type f -print0)
+    done < <(find "$SOURCE_DIR" ${RULES_PRUNE_ARGS[@]+"${RULES_PRUNE_ARGS[@]}"} -type f -print0)
 
     total_bundled=0
     total_skipped=0
 
     for ext in "${!seen_exts[@]}"; do
         current_part=1
-        read -r bundled skipped <<< "$(bundle_files "$OUTPUT_DIR/${ext}${SUFFIX}" "$ext")"
+        read -r bundled skipped ignored <<< "$(bundle_files "$OUTPUT_DIR/${ext}${SUFFIX}" "$ext")"
 
         # If no splitting occurred, remove the _1 suffix
         if [[ -f "${OUTPUT_DIR}/${ext}${SUFFIX}_1.md" && ! -f "${OUTPUT_DIR}/${ext}${SUFFIX}_2.md" ]]; then
@@ -295,5 +349,6 @@ if [[ "$BY_EXTENSION" == true ]]; then
     echo ""
     echo "───────────────────────────────────"
     echo "Done. Bundled: $total_bundled  |  Skipped: $total_skipped binary file(s)"
+    (( total_ignored > 0 )) && echo "Ignored by mode '$MODE': $total_ignored file(s)"
     echo "Output folder: $OUTPUT_DIR"
 fi

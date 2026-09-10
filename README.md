@@ -1,20 +1,21 @@
 # 🧩 ai-project-bundler
 
-**Turn your codebase into clean, AI-ready Markdown — in three commands.**
+**Turn your codebase into clean, AI-ready Markdown — in one command.**
 
-Keeping an AI assistant's project knowledge in sync with a real codebase is tedious: you don't want binary assets, secrets, or noisy migration files clogging up the context, and manually copy-pasting files gets old fast. `ai-project-bundler` automates the whole thing with a simple, composable pipeline of bash scripts.
+Keeping an AI assistant's project knowledge in sync with a real codebase is tedious: you don't want binary assets, secrets, dependencies, or noisy migration files clogging up the context, and manually copy-pasting files gets old fast. `ai-project-bundler` walks your source tree once, skipping everything a ruleset tells it to ignore, and writes what's left as Markdown.
 
-Copy → Clean → Bundle. That's it.
+Nothing is copied. Nothing is deleted.
 
 ---
 
 ## ✨ Why you'd want this
 
 - **Zero manual curation.** Point it at a folder, get back tidy Markdown ready to upload as project knowledge to Claude, ChatGPT, Gemini, or any other AI assistant.
-- **Config-driven cleanup.** Rules for what to delete (extensions, filename patterns) live in a `cleanup_rules.json` file, not hardcoded in the script — add a new project type by editing config, not code.
+- **Config-driven rules.** What to ignore (directories, extensions, filename patterns) lives in a `cleanup_rules.json` file, not hardcoded in the script — add a new project type by editing config, not code.
+- **Skips dependencies properly.** `node_modules`, `.git`, `bin`, `obj` and friends are pruned during the walk, so they're never read. On a real project this is the difference between a nine-second run producing 702 files and a 58ms run producing the 2 you wanted.
 - **Single file or split by extension.** Bundle everything into one `.md`, or organize output into `tsx.md`, `css.md`, `json.md`, etc.
 - **Handles large codebases gracefully.** Auto-splits output into numbered parts when it exceeds a size limit you set.
-- **Safe by default.** Never overwrites existing files or folders, and `--dry-run` lets you preview exactly what cleanup would delete before it deletes it.
+- **Reads, never writes.** The default flow doesn't copy or delete anything in your project — it only writes the bundle. Never overwrites an existing output folder either.
 - **No dependencies.** Just bash and coreutils. Nothing to install.
 
 ---
@@ -31,57 +32,93 @@ chmod +x *.sh
 ./main_backend.sh
 ```
 
-That's it — you'll end up with `copied_files_App_Frontend_bundled/copied_files_App_Frontend.md` (and the backend equivalent), ready to drag straight into your AI assistant's project knowledge.
+That's it — you'll end up with `App_Frontend_bundled/App_Frontend.md` (and the backend equivalent), ready to drag straight into your AI assistant's project knowledge.
 
 ---
 
 ## 🔧 How it works
 
-The pipeline is three independent, chainable scripts:
+One command does the whole job:
+
+```bash
+./bundle_files.sh ./App_Backend --mode backend
+```
+
+[`bundle_files.sh`](bundle_files_README.md) walks the source tree once. Directories listed in `exclude_dirs` are pruned — `find` never descends into them — and files matching an `extensions` or `patterns` rule are skipped as it goes. Everything else is written to Markdown with its relative path as a heading. Rules are read from [`cleanup_rules.json`](cleanup_rules.json) via [`rules_lib.sh`](rules_lib.sh), shared by every script that needs them.
+
+Files skipped by a rule are reported, so nothing disappears quietly:
+
+```
+  [IGNORED]  assets/Logo.PNG  (extension: .png)
+  [BUNDLED]  src/App.tsx → App_Backend.md
+```
+
+### Working from a copy instead
+
+If you'd rather have an intermediate folder you can inspect or hand-edit before bundling, the original three-step pipeline still works and is fully supported:
 
 | Step | Script | What it does |
 |---|---|---|
-| 1️⃣ | [`copy_files_new_folder.sh`](copy_files_new_folder_README.md) | Recursively copies every file from a source folder into a working copy that mirrors the source layout |
-| 2️⃣ | [`cleanup_copied_files.sh`](cleanup_copied_files_README.md) | Deletes files you don't want (assets, secrets, migrations), based on a named ruleset from `cleanup_rules.json` |
-| 3️⃣ | [`bundle_files.sh`](bundle_files_README.md) | Bundles what's left into clean, syntax-highlighted Markdown |
+| 1️⃣ | [`copy_files_new_folder.sh`](copy_files_new_folder_README.md) | Copies the source into a working folder mirroring its layout. Pass `--mode` to prune excluded directories while copying |
+| 2️⃣ | [`cleanup_copied_files.sh`](cleanup_copied_files_README.md) | Deletes unwanted files from the copy, based on a named ruleset |
+| 3️⃣ | [`bundle_files.sh`](bundle_files_README.md) | Bundles what's left |
 
 ```bash
-./copy_files_new_folder.sh ./App_Backend
+./copy_files_new_folder.sh ./App_Backend --mode backend
 ./cleanup_copied_files.sh ./copied_files_App_Backend --mode backend --dry-run  # preview
 ./cleanup_copied_files.sh ./copied_files_App_Backend --mode backend
 ./bundle_files.sh ./copied_files_App_Backend
 ```
 
+This path does delete files, so it has `--dry-run`. Always pass `--mode` to the copy step — without it every dependency gets copied before being deleted, which is the slow path the one-command flow exists to avoid.
+
 Each script also has its own README with full usage details and examples.
 
-### 🧹 What gets cleaned up
+### 🧹 What gets left out
 
-Cleanup rules are named modes defined in [`cleanup_rules.json`](cleanup_rules.json), selected with `--mode`. The two built-in modes are tuned for a specific stack:
+Rules are named modes in [`cleanup_rules.json`](cleanup_rules.json), selected with `--mode`. A mode may define any of four keys, all optional:
 
-**`frontend`** — optimized for a **React** app:
-`.png` `.jpg/.jpeg` `.svg` `.ico` `.woff2` `.ttf` `.wav` `.mp3` `.pdf`
+| Key | Matches on | Effect |
+|---|---|---|
+| `exclude_dirs` | directory name | The directory is pruned — nothing beneath it is read at all |
+| `extensions` | file extension, case-insensitive | The file is skipped |
+| `patterns` | filename, as an extended regex | The file is skipped |
+| `keep` | filename, as an extended regex | Exception: the file survives even if a rule above matches it |
 
-**`backend`** — optimized for an **ASP.NET Core** app:
-dated EF Core migration files (e.g. `20260308022512_InitialCreate.cs`) and `launchSettings.json` (which often contains secrets)
+`exclude_dirs` is the one that matters most for speed, and it's the only key that can express a *location*. Extensions and patterns see the filename alone, so neither can say "skip `node_modules`" — a dependency folder is full of the same `.js` and `.json` files as your own source.
 
-A mode can also define `keep` rules — exceptions that survive even when a delete rule matches them, for cases like removing every `.html` file except `index.html`. Delete rules alone can't express that.
+`keep` exists because the other keys can't express an exception. Bash regular expressions have no negative lookahead, so "every `.html` except `index.html`" is not writable as a pattern.
 
-Using a different stack? Add a new key to `cleanup_rules.json` tailored to it and pass `--mode <that key>` — no script changes needed. If `--mode` is omitted, the script falls back to guessing from the folder name and prints a warning; see the [cleanup script README](cleanup_copied_files_README.md) for details.
+The two built-in modes:
+
+**`frontend`** — for a **React** app:
+prunes `node_modules` `.git` `dist` `build` `coverage` `.next`; skips `.png` `.jpg/.jpeg` `.svg` `.ico` `.woff2` `.ttf` `.wav` `.mp3` `.pdf`
+
+**`backend`** — for an **ASP.NET Core** app:
+prunes `.git` `bin` `obj` `packages`; skips dated EF Core migrations (e.g. `20260308022512_InitialCreate.cs`) and `launchSettings.json`, which often holds secrets
+
+Using a different stack? Add a key to `cleanup_rules.json` and pass `--mode <that key>` — no script changes needed.
 
 ### 📦 Bundling options
 
 ```bash
 # Single Markdown file
-./bundle_files.sh copied_files_App_Frontend
+./bundle_files.sh ./App_Frontend --mode frontend
 
 # One .md per file extension
-./bundle_files.sh copied_files_App_Frontend --by-extension
+./bundle_files.sh ./App_Frontend --mode frontend --by-extension
 
 # Add a suffix to output filenames
-./bundle_files.sh copied_files_App_Frontend --suffix v2
+./bundle_files.sh ./App_Frontend --mode frontend --suffix v2
 
 # Split output once it exceeds 500KB
-./bundle_files.sh copied_files_App_Frontend --max-size 500
+./bundle_files.sh ./App_Frontend --mode frontend --max-size 500
+
+# A different ruleset file
+./bundle_files.sh ./App_Mobile --mode mobile --rules my_rules.json
+
+# No --mode at all: bundle every file, no filtering
+./bundle_files.sh ./some_folder
 ```
 
 Every file gets a heading with its relative path directly above a fenced, language-tagged code block — clean and easy for an LLM (or a human) to skim.
@@ -94,20 +131,22 @@ Prefer not to think about it at all? Use the pre-wired entry points:
 
 | Script | Behavior |
 |---|---|
-| `main_frontend.sh` | Full pipeline → single bundled `.md` |
-| `main_backend.sh` | Full pipeline → single bundled `.md` |
-| `main_frontend_by_extension.sh` | Full pipeline → bundled by extension, 800KB cap |
-| `main_backend_by_extension.sh` | Full pipeline → bundled by extension, 800KB cap |
+| `main_frontend.sh` | `frontend` rules → single bundled `.md` |
+| `main_backend.sh` | `backend` rules → single bundled `.md` |
+| `main_frontend_by_extension.sh` | `frontend` rules → bundled by extension, 800KB cap |
+| `main_backend_by_extension.sh` | `backend` rules → bundled by extension, 800KB cap |
+
+Each is one line — edit `PROJECT` at the top to point at your own folder. They won't overwrite an existing output folder, so remove it before re-running.
 
 ---
 
 ## 📁 Example output structure
 
 ```
-copied_files_App_Frontend_bundled/
-├── copied_files_App_Frontend.md      # everything in one file
+App_Frontend_bundled/
+├── App_Frontend.md                   # everything in one file
 # or, with --by-extension:
-copied_files_App_Backend_bundled/
+App_Backend_bundled/
 ├── cs.md
 ├── json.md
 ├── md.md
@@ -119,11 +158,15 @@ copied_files_App_Backend_bundled/
 ## 🗺️ Full workflow at a glance
 
 ```
-App_Frontend/  ──┐
-                  ├─ copy ─► copied_files_App_Frontend  ──┐
-App_Backend/   ──┘                                        ├─ clean ─► ──┐
-                                                                          ├─ bundle ─► 📄 Markdown
-                                                                          │             ready to upload
+App_Frontend/ ──┐
+                ├─ walk once, pruning excluded dirs ─► 📄 Markdown
+App_Backend/  ──┘        and skipping ignored files       ready to upload
+```
+
+Or, working from a copy:
+
+```
+App_Frontend/ ─► copy ─► copied_files_App_Frontend ─► clean ─► bundle ─► 📄 Markdown
 ```
 
 ---

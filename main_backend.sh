@@ -2,8 +2,8 @@
 set -euo pipefail
 
 PROJECT=App_Backend
-COPIED="./copied_files_${PROJECT}"
 
-./copy_files_new_folder.sh "./${PROJECT}"
-./cleanup_copied_files.sh "$COPIED" --mode backend
-./bundle_files.sh "$COPIED"
+# One pass over the source tree: excluded directories are never descended into
+# and rule-matched files are never read. Nothing is copied and nothing is
+# deleted. For an inspectable intermediate folder instead, see the README.
+./bundle_files.sh "./${PROJECT}" --mode backend

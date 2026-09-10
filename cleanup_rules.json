@@ -1,10 +1,10 @@
 {
   "frontend": {
-    "extensions": ["png", "jpg", "jpeg", "svg", "woff2", "ttf", "wav", "mp3", "ico", "pdf"],
-    "patterns": []
+    "exclude_dirs": ["node_modules", ".git", "dist", "build", "coverage", ".next"],
+    "extensions": ["png", "jpg", "jpeg", "svg", "woff2", "ttf", "wav", "mp3", "ico", "pdf"]
   },
   "backend": {
-    "extensions": [],
+    "exclude_dirs": [".git", "bin", "obj", "packages"],
     "patterns": ["^[0-9]{14}_.*", "^launchSettings\\.json$"]
   }
 }

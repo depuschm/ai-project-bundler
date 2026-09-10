@@ -1,6 +1,8 @@
 # bundle_files.sh
 
-Bundles all files from a folder into a `.md` file ready to upload as project knowledge to an AI assistant (Claude, ChatGPT, Gemini, etc.). Run this after `cleanup_copied_files.sh`.
+Bundles files from a folder into a `.md` file ready to upload as project knowledge to an AI assistant (Claude, ChatGPT, Gemini, etc.).
+
+Point it straight at your source tree with `--mode` and it filters as it walks — excluded directories are pruned, rule-matched files are skipped, and nothing is copied or deleted. Without `--mode` it bundles every file it finds, which is what you want when running it over an already-cleaned folder.
 
 - Use `--by-extension` to create one `.md` per file extension.
 - Use `--suffix <name>` to add a suffix to all output filenames.
@@ -15,7 +17,7 @@ Bundles all files from a folder into a `.md` file ready to upload as project kno
 chmod +x bundle_files.sh
 
 # 2. Run it
-./bundle_files.sh <folder> [output_file.md] [--by-extension] [--suffix <name>] [--max-size <kb>]
+./bundle_files.sh <folder> [output_file.md] [--mode <name>] [--rules <file>] [--by-extension] [--suffix <name>] [--max-size <kb>]
 ```
 
 | Argument | Default | Description |
@@ -25,7 +27,30 @@ chmod +x bundle_files.sh
 | `--by-extension` | off | Creates one `.md` per file extension in a new folder |
 | `--max-size <kb>` | no limit | Splits output into numbered files if size exceeds this limit |
 | `--suffix <name>` | none | Adds a suffix to all output filenames |
+| `--mode <name>` | none | Apply a ruleset while walking. Without it, every file is bundled |
+| `--rules <file>` | `cleanup_rules.json` next to the script | Path to the ruleset config |
 | `-h`, `--help` | — | Show usage and exit |
+
+---
+
+## Filtering with `--mode`
+
+```bash
+./bundle_files.sh ./App_Frontend --mode frontend
+```
+
+Reads the `frontend` ruleset from `cleanup_rules.json`. Directories in `exclude_dirs` are pruned at the `find` level, so a `node_modules` is never descended into rather than being read and discarded. Files matching `extensions` or `patterns` are skipped unless a `keep` rule spares them.
+
+Skipped files are reported so nothing vanishes silently:
+
+```
+  [IGNORED]  assets/Logo.PNG  (extension: .png)
+  [BUNDLED]  src/App.tsx → App_Frontend.md
+Done. Bundled: 4  |  Skipped: 0 binary file(s)
+Ignored by mode 'frontend': 1 file(s)
+```
+
+Rules are loaded by [`rules_lib.sh`](rules_lib.sh), shared with the other scripts. See the [cleanup README](cleanup_copied_files_README.md) for the ruleset format.
 
 ---
 
@@ -132,3 +157,4 @@ copied_files_App_Frontend_bundled/
 - The correct code language tag is auto-detected from the file extension.
 - The script will **not** overwrite an existing output file or folder.
 - Unknown options, missing values and stray extra arguments are rejected with a usage message, so a typo like `--by-extention` fails loudly instead of being silently treated as an output filename.
+- `--mode` filters only; it never modifies your source tree.

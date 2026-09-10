@@ -5,16 +5,47 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=rules_lib.sh
+source "${SCRIPT_DIR}/rules_lib.sh"
+
+EXCLUDE_DIRS=(); EXTENSIONS=(); PATTERNS=(); KEEP=()
+RULES_PRUNE_ARGS=()
+MODE=""
+CONFIG_FILE="${SCRIPT_DIR}/cleanup_rules.json"
+
 # ── Configuration ────────────────────────────────────────────────────────────
-SOURCE_DIR="${1:-.}"              # default: current directory
-if [[ -n "${1:-}" ]]; then
-    FOLDER_NAME="${2:-copied_files_${1##*/}}"  # e.g. copied_files_App_Frontend
+# Flags are separated from positionals first, so --mode can appear anywhere
+# without being mistaken for the target folder name.
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --mode)
+            [[ $# -ge 2 ]] || { echo "Error: --mode requires a name." >&2; exit 1; }
+            shift; MODE="$1"
+            ;;
+        --rules)
+            [[ $# -ge 2 ]] || { echo "Error: --rules requires a file." >&2; exit 1; }
+            shift; CONFIG_FILE="$1"
+            ;;
+        -*)
+            echo "Error: unknown option '$1'." >&2
+            echo "Usage: ./copy_files_new_folder.sh [source] [new_folder] [--mode <name>] [--rules <file>]" >&2
+            exit 1
+            ;;
+        *) POSITIONAL+=("$1") ;;
+    esac
+    shift
+done
+
+SOURCE_DIR="${POSITIONAL[0]:-.}"
+if [[ -n "${POSITIONAL[0]:-}" ]]; then
+    FOLDER_NAME="${POSITIONAL[1]:-copied_files_${POSITIONAL[0]##*/}}"
 else
-    FOLDER_NAME="${2:-copied_files}"
+    FOLDER_NAME="${POSITIONAL[1]:-copied_files}"
 fi
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Resolve to absolute path
 SOURCE_DIR="$(cd "$SOURCE_DIR" && pwd)"
 TARGET_DIR="$(pwd)/$FOLDER_NAME"
 
@@ -31,7 +62,15 @@ echo "Created folder   : $TARGET_DIR"
 echo ""
 
 # ── Find and copy all files ──────────────────────────────────────────────────
-mapfile -d '' files < <(find "$SOURCE_DIR" -type f -not -path "$TARGET_DIR/*" -print0)
+# Excluded directories are pruned rather than copied and deleted later: a real
+# node_modules or .git is thousands of files, and not reading them at all is
+# the whole saving.
+if [[ -n "$MODE" ]]; then
+    rules_load_mode "$MODE" "$CONFIG_FILE" || exit 1
+    rules_build_prune_args
+fi
+
+mapfile -d '' files < <(find "$SOURCE_DIR" ${RULES_PRUNE_ARGS[@]+"${RULES_PRUNE_ARGS[@]}"} -type f -not -path "$TARGET_DIR/*" -print0)
 
 if [[ ${#files[@]} -eq 0 ]]; then
     echo "No files found in '$SOURCE_DIR'. Nothing to copy."

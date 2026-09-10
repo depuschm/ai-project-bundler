@@ -1,5 +1,7 @@
 # cleanup_copied_files.sh
 
+> **Most people won't need this script.** `bundle_files.sh --mode` filters while it walks, so there's nothing to delete afterwards. Use this only when you want an intermediate folder you can inspect or hand-edit before bundling.
+
 Deletes files from a copied folder according to a named ruleset — which extensions and filename patterns to delete are defined in a config file (`cleanup_rules.json`), not hardcoded in the script. The built-in `frontend` and `backend` modes are tuned for a **React** frontend and an **ASP.NET Core** backend respectively; add your own mode for a different stack. Run this after `copy_files_new_folder.sh`.
 
 ---
@@ -45,21 +47,24 @@ chmod +x cleanup_copied_files.sh
 ```json
 {
   "frontend": {
-    "extensions": ["png", "jpg", "jpeg", "svg", "woff2", "ttf", "wav", "mp3", "ico", "pdf"],
-    "patterns": [],
-    "keep": []
+    "exclude_dirs": ["node_modules", ".git", "dist", "build", "coverage", ".next"],
+    "extensions": ["png", "jpg", "jpeg", "svg", "woff2", "ttf", "wav", "mp3", "ico", "pdf"]
   },
   "backend": {
-    "extensions": [],
-    "patterns": ["^[0-9]{14}_.*", "^launchSettings\\.json$"],
-    "keep": []
+    "exclude_dirs": [".git", "bin", "obj", "packages"],
+    "patterns": ["^[0-9]{14}_.*", "^launchSettings\\.json$"]
   }
 }
 ```
 
+The config is read by [`rules_lib.sh`](rules_lib.sh), shared by every script that takes `--mode`, so a ruleset means the same thing everywhere.
+
 - `extensions` — files matching `*.ext` are deleted, **case-insensitively**, so `png` also removes `Logo.PNG`.
 - `patterns` — filenames (not full paths) matched against these as extended regular expressions are deleted.
+- `exclude_dirs` — directory names. Everything beneath a matching directory is ignored. This is the only key that matches on *location*: `extensions` and `patterns` see the filename alone, so neither can express "skip `node_modules`", which is full of the same `.js` and `.json` files as your own source.
 - `keep` — exceptions. Any filename matching one of these survives, even when an `extensions` or `patterns` rule also matches it.
+
+`exclude_dirs` is honoured by `bundle_files.sh --mode` and `copy_files_new_folder.sh --mode`, which prune those directories during the walk. This script deletes from a folder that has already been copied, so pass `--mode` to the copy step to avoid copying them in the first place.
 
 All three keys are optional and can be omitted rather than left as empty arrays. A mode needs at least one of `extensions` or `patterns` to delete anything; if it has neither, the script says so and deletes nothing:
 
@@ -158,9 +163,11 @@ It is opt-in: without the flag the script deletes straight away.
 ## Typical workflow
 
 ```bash
-./copy_files_new_folder.sh App_Frontend
+./copy_files_new_folder.sh App_Frontend --mode frontend
 ./cleanup_copied_files.sh copied_files_App_Frontend --mode frontend
 
-./copy_files_new_folder.sh App_Backend
+./copy_files_new_folder.sh App_Backend --mode backend
 ./cleanup_copied_files.sh copied_files_App_Backend --mode backend
 ```
+
+Pass `--mode` to the copy step too, or dependency folders get copied in full and then deleted.
