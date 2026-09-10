@@ -10,7 +10,7 @@ Keeping an AI assistant's project knowledge in sync with a real codebase is tedi
 
 - **Zero manual curation.** Point it at a folder, get back tidy Markdown ready to upload as project knowledge to Claude, ChatGPT, Gemini, or any other AI assistant.
 - **Config-driven rules.** What to ignore (directories, extensions, filename patterns) lives in a `rules.json` file, not hardcoded in the script — add a new project type by editing config, not code.
-- **Skips dependencies properly.** `node_modules`, `.git`, `bin`, `obj` and friends are pruned during the walk, so they're never read. On a test tree of 800 files where only 2 were actual source, ignoring the rules bundled 702 of them in five seconds; with the rules applied it bundled the 2, in 55ms. Real dependency folders are far larger than that test one.
+- **Skips dependencies properly.** `node_modules`, `.git`, `bin`, `obj` and friends are pruned during the walk, so they're never read rather than read and discarded.
 - **Single file or split by extension.** Bundle everything into one `.md`, or organize output into `tsx.md`, `css.md`, `json.md`, etc.
 - **Handles large codebases gracefully.** Auto-splits output into numbered parts when it exceeds a size limit you set.
 - **Your project is never modified.** No working copy, no deletions — the only thing written is the bundle, and it won't overwrite an existing output folder.
