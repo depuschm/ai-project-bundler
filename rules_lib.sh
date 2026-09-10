@@ -93,16 +93,17 @@ rules_build_prune_args() {
     fi
 }
 
-# True when the filename matches a keep rule. Records the hit so unused rules
-# can be reported: this key fails dangerous, since a typo means a file the user
-# believed was protected is silently dropped.
-declare -A RULES_KEEP_HITS
+# True when the filename matches a keep rule.
+#
+# Deliberately stateless. An earlier version recorded which rules had spared a
+# file so unused ones could be reported, but this function is called from
+# inside $(...) where those records die with the subshell. Reporting lives in
+# the caller instead, which walks the tree in the parent shell.
 rules_should_keep() {
     local filename="$1" rule matched=1
     for rule in "${KEEP[@]}"; do
         [[ -z "$rule" ]] && continue
         if [[ "$filename" =~ $rule ]]; then
-            RULES_KEEP_HITS["$rule"]=$(( ${RULES_KEEP_HITS["$rule"]:-0} + 1 ))
             matched=0
         fi
     done

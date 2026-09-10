@@ -73,6 +73,15 @@ Rules are named modes in [`rules.json`](rules.json), selected with `--mode`. A m
 
 `keep` exists because the other keys can't express an exception. Bash regular expressions have no negative lookahead, so "every `.html` except `index.html`" is not writable as a pattern.
 
+It's also the one key that fails in the dangerous direction. A mistake in an ignore rule leaves an extra file in the bundle; a mistake in a `keep` rule quietly removes one you believed was protected. So a rule matching no file at all is reported:
+
+```
+⚠️  keep rule '^index\.htm$' matches no file — check it for typos.
+    Anything it was meant to protect has been left out.
+```
+
+A rule that matches files no ignore rule would have touched is merely redundant and stays quiet.
+
 The two built-in modes:
 
 **`frontend`** — for a **React** app:
