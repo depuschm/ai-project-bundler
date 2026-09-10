@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # cleanup_copied_files.sh
 # Deletes files from a copied_files folder according to a named ruleset.
-# Rulesets (extensions to delete, filename patterns to delete) live in a
-# config file (default: cleanup_rules.json) instead of the script's source.
+# Rulesets (extensions to delete, filename patterns to delete, and keep rules
+# that override both) live in a config file (default: cleanup_rules.json)
+# instead of the script's source.
 # Run this after copy_files_new_folder.sh.
 
 set -euo pipefail

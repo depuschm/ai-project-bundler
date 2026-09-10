@@ -47,6 +47,7 @@ The pipeline is three independent, chainable scripts:
 
 ```bash
 ./copy_files_new_folder.sh ./App_Backend
+./cleanup_copied_files.sh ./copied_files_App_Backend --mode backend --dry-run  # preview
 ./cleanup_copied_files.sh ./copied_files_App_Backend --mode backend
 ./bundle_files.sh ./copied_files_App_Backend
 ```
@@ -62,6 +63,8 @@ Cleanup rules are named modes defined in [`cleanup_rules.json`](cleanup_rules.js
 
 **`backend`** — optimized for an **ASP.NET Core** app:
 dated EF Core migration files (e.g. `20260308022512_InitialCreate.cs`) and `launchSettings.json` (which often contains secrets)
+
+A mode can also define `keep` rules — exceptions that survive even when a delete rule matches them, for cases like removing every `.html` file except `index.html`. Delete rules alone can't express that.
 
 Using a different stack? Add a new key to `cleanup_rules.json` tailored to it and pass `--mode <that key>` — no script changes needed. If `--mode` is omitted, the script falls back to guessing from the folder name and prints a warning; see the [cleanup script README](cleanup_copied_files_README.md) for details.
 
