@@ -149,16 +149,30 @@ get_language() {
     esac
 }
 
+# ── Pick a fence longer than any run of backticks inside the file ────────────
+# A three-backtick fence is closed early by any file that itself contains one —
+# and Markdown files, which this tool exists to produce, are full of them.
+# CommonMark closes a fence only with a run at least as long as the opener, so
+# wrapping in one backtick more than the longest run inside is always safe.
+fence_for() {
+    local file="$1" longest n=3
+    longest="$(grep -oE '^`+' "$file" 2>/dev/null \
+        | awk '{ if (length($0) > m) m = length($0) } END { print m+0 }')"
+    (( longest >= n )) && n=$(( longest + 1 ))
+    printf '%*s' "$n" '' | tr ' ' '`'
+}
+
 # ── Build a file block as a string ───────────────────────────────────────────
 build_block() {
     local file="$1"
     local relative_path="${file#$SOURCE_DIR/}"
-    local lang
+    local lang fence
     lang="$(get_language "$file")"
+    fence="$(fence_for "$file")"
 
-    printf '%s\n' "---" "## ${relative_path}" "---" "\`\`\`${lang}"
+    printf '%s\n' "---" "## ${relative_path}" "---" "${fence}${lang}"
     cat "$file"
-    printf '\n%s\n\n' '```'
+    printf '\n%s\n\n' "$fence"
 }
 
 # ── Write to file, split if max size exceeded ─────────────────────────────────
