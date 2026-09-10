@@ -146,12 +146,6 @@ App_Frontend/ ──┐
 App_Backend/  ──┘        and skipping ignored files       ready to upload
 ```
 
-Or, working from a copy:
-
-```
-App_Frontend/ ─► copy ─► copied_files_App_Frontend ─► clean ─► bundle ─► 📄 Markdown
-```
-
 ---
 
 ## 📄 License

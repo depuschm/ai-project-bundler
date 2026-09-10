@@ -43,9 +43,9 @@ Usage: ./bundle_files.sh <folder> [output_file.md] [options]
   -h, --help          Show this message
 
 Examples:
-  ./bundle_files.sh copied_files_App_Frontend
-  ./bundle_files.sh copied_files_App_Frontend frontend.md
-  ./bundle_files.sh copied_files_App_Frontend --by-extension --max-size 800
+  ./bundle_files.sh ./App_Frontend --mode frontend
+  ./bundle_files.sh ./App_Frontend --mode frontend frontend.md
+  ./bundle_files.sh ./App_Frontend --mode frontend --by-extension --max-size 800
 EOF
     exit 1
 }

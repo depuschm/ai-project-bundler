@@ -2,7 +2,7 @@
 
 Bundles files from a folder into a `.md` file ready to upload as project knowledge to an AI assistant (Claude, ChatGPT, Gemini, etc.).
 
-Point it straight at your source tree with `--mode` and it filters as it walks — excluded directories are pruned, rule-matched files are skipped, and nothing is copied or deleted. Without `--mode` it bundles every file it finds, which is what you want when running it over an already-cleaned folder.
+Point it straight at your source tree with `--mode` and it filters as it walks — excluded directories are pruned, rule-matched files are skipped, and nothing is copied or deleted. Without `--mode` it bundles every file it finds, which is what you want for a folder you've already curated by hand.
 
 - Use `--by-extension` to create one `.md` per file extension.
 - Use `--suffix <name>` to add a suffix to all output filenames.
@@ -22,7 +22,7 @@ chmod +x bundle_files.sh
 
 | Argument | Default | Description |
 |---|---|---|
-| `folder` | required | The folder to bundle (e.g. `copied_files_App_Frontend`) |
+| `folder` | required | The folder to bundle (e.g. `./App_Frontend`) |
 | `output_file.md` | `<folder_name>.md` | Name of the output file (single mode only) |
 | `--by-extension` | off | Creates one `.md` per file extension in a new folder |
 | `--max-size <kb>` | no limit | Splits output into numbered files if size exceeds this limit |
@@ -58,60 +58,60 @@ Rules are loaded by [`rules_lib.sh`](rules_lib.sh). See the [main README](README
 
 **Single file (default)**
 ```bash
-# Bundles everything into copied_files_App_Frontend_bundled/copied_files_App_Frontend.md
-./bundle_files.sh copied_files_App_Frontend
+# Bundles everything into App_Frontend_bundled/App_Frontend.md
+./bundle_files.sh ./App_Frontend --mode frontend
 
 # Custom output filename
-./bundle_files.sh copied_files_App_Frontend frontend.md
+./bundle_files.sh App_Frontend frontend.md
 
 # With suffix
-./bundle_files.sh copied_files_App_Frontend --suffix v2
+./bundle_files.sh App_Frontend --suffix v2
 
 # Split if any file exceeds 500KB
-./bundle_files.sh copied_files_App_Frontend --max-size 500
+./bundle_files.sh App_Frontend --max-size 500
 ```
 
 Output structure (single mode):
 ```
-copied_files_App_Frontend_bundled/
-    copied_files_App_Frontend.md
+App_Frontend_bundled/
+    App_Frontend.md
     # or if split:
-    copied_files_App_Frontend_1.md
-    copied_files_App_Frontend_2.md
+    App_Frontend_1.md
+    App_Frontend_2.md
 ```
 
 **By extension**
 ```bash
-# Creates copied_files_App_Frontend_bundled/ with tsx.md, css.md, json.md ...
-./bundle_files.sh copied_files_App_Frontend --by-extension
+# Creates App_Frontend_bundled/ with tsx.md, css.md, json.md ...
+./bundle_files.sh App_Frontend --by-extension
 
 # With suffix
-./bundle_files.sh copied_files_App_Frontend --by-extension --suffix v2
+./bundle_files.sh App_Frontend --by-extension --suffix v2
 
 # By extension with max size — splits into tsx_1.md, tsx_2.md etc. if needed
-./bundle_files.sh copied_files_App_Frontend --by-extension --max-size 500
+./bundle_files.sh App_Frontend --by-extension --max-size 500
 ```
 
 **With suffix**
 ```bash
 # Single mode with suffix
-./bundle_files.sh copied_files_App_Frontend --suffix v2
-# → copied_files_App_Frontend_bundled/copied_files_App_Frontend_v2.md
+./bundle_files.sh App_Frontend --suffix v2
+# → App_Frontend_bundled/App_Frontend_v2.md
 
 # With suffix and split
-./bundle_files.sh copied_files_App_Frontend --max-size 500 --suffix v2
-# → copied_files_App_Frontend_bundled/copied_files_App_Frontend_v2_1.md
-#   copied_files_App_Frontend_bundled/copied_files_App_Frontend_v2_2.md
+./bundle_files.sh App_Frontend --max-size 500 --suffix v2
+# → App_Frontend_bundled/App_Frontend_v2_1.md
+#   App_Frontend_bundled/App_Frontend_v2_2.md
 
 # By extension with suffix
-./bundle_files.sh copied_files_App_Frontend --by-extension --suffix v2
-# → copied_files_App_Frontend_bundled/tsx_v2.md
-#   copied_files_App_Frontend_bundled/css_v2.md
+./bundle_files.sh App_Frontend --by-extension --suffix v2
+# → App_Frontend_bundled/tsx_v2.md
+#   App_Frontend_bundled/css_v2.md
 ```
 
 Output structure with `--by-extension`:
 ```
-copied_files_App_Frontend_bundled/
+App_Frontend_bundled/
     tsx.md
     css.md
     json.md
@@ -120,7 +120,7 @@ copied_files_App_Frontend_bundled/
 
 Output structure with `--by-extension --max-size 500`:
 ```
-copied_files_App_Frontend_bundled/
+App_Frontend_bundled/
     tsx_1.md
     tsx_2.md
     css.md

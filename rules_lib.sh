@@ -109,7 +109,7 @@ rules_should_keep() {
     return $matched
 }
 
-# True when a delete/ignore rule matches the filename. Sets RULES_MATCH_REASON.
+# True when an ignore rule matches the filename. Sets RULES_MATCH_REASON.
 rules_matches() {
     local filename="$1" ext lower rule
     RULES_MATCH_REASON=""
