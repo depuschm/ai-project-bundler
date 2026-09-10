@@ -176,5 +176,21 @@ for pattern in "${PATTERNS[@]}"; do
     [[ -n "$pattern" ]] && delete_by_pattern "$pattern"
 done
 
+# Deleting files leaves their directories behind. Prune the empty ones so the
+# working copy mirrors what actually survived. -mindepth 1 keeps TARGET_DIR
+# itself even when every file in it was deleted.
+dirs_before=$(find "$TARGET_DIR" -mindepth 1 -type d | wc -l)
+
+# A parent only becomes detectably empty once its children are gone, so repeat
+# until a pass finds nothing left to prune.
+while [[ -n "$(find "$TARGET_DIR" -mindepth 1 -type d -empty -print -quit)" ]]; do
+    find "$TARGET_DIR" -mindepth 1 -type d -empty -delete
+done
+
+dirs_after=$(find "$TARGET_DIR" -mindepth 1 -type d | wc -l)
+pruned=$(( dirs_before - dirs_after ))
+
 echo "───────────────────────────────────"
 echo "Done. Deleted: $deleted file(s) from $TARGET_DIR"
+(( pruned > 0 )) && echo "Pruned: $pruned empty director$([[ $pruned -eq 1 ]] && echo y || echo ies)"
+exit 0
