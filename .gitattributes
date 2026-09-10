@@ -1,0 +1,9 @@
+# Shell scripts must be LF in the working tree on every platform. A CRLF
+# shebang makes the kernel look for an interpreter named "bash\r", and the
+# script fails on Linux and macOS with:
+#   /usr/bin/env: 'bash\r': No such file or directory
+*.sh text eol=lf
+
+# Keep the rest normalised too, so diffs stay readable across contributors.
+*.md text
+*.json text
