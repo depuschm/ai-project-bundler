@@ -21,6 +21,10 @@ Usage: ./cleanup_copied_files.sh <folder> [--mode <name>] [--config <file>] [--d
 
   <folder>          Folder to clean up (required)
   --dry-run         List what would be deleted without deleting anything
+
+Rulesets may define "extensions", "patterns" and "keep". A "keep" rule is an
+exception: any file whose name matches it survives, even if a delete rule also
+matches. Keep rules that match nothing are reported.
   --mode <name>     Ruleset to apply, e.g. "frontend" or "backend".
                      Must match a top-level key in the config file.
                      If omitted, the script guesses from the folder name
@@ -140,17 +144,53 @@ fi
 
 mapfile -t EXTENSIONS < <(extract_array "extensions" <<< "$MODE_BLOCK")
 mapfile -t PATTERNS   < <(extract_array "patterns"   <<< "$MODE_BLOCK")
+mapfile -t KEEP       < <(extract_array "keep"       <<< "$MODE_BLOCK")
 
 if [[ ${#EXTENSIONS[@]} -eq 0 && ${#PATTERNS[@]} -eq 0 ]]; then
     echo "Warning: mode '$MODE' has no extensions or patterns defined — nothing to delete." >&2
 fi
 
+# ── Keep rules ────────────────────────────────────────────────────────────────
+# Exceptions to the delete rules, matched against the filename as extended
+# regular expressions. A keep rule always wins over extensions and patterns.
+#
+# Unlike extensions and patterns, this key fails dangerous: a typo in a delete
+# rule means a file survives, but a typo here means a file you believed was
+# protected is deleted with no error. So every keep rule that matches nothing
+# is reported at the end of the run.
+
+declare -A KEEP_HITS       # keep rule -> number of files it spared
+declare -A KEPT_REPORTED   # file -> already logged, so it is listed once
+
+should_keep() {
+    local filename="$1"
+    local matched=1
+    local rule
+    for rule in "${KEEP[@]}"; do
+        [[ -z "$rule" ]] && continue
+        if [[ "$filename" =~ $rule ]]; then
+            KEEP_HITS["$rule"]=$(( ${KEEP_HITS["$rule"]:-0} + 1 ))
+            matched=0
+        fi
+    done
+    return $matched
+}
+
 # ── Delete ────────────────────────────────────────────────────────────────────
 deleted=0
+kept=0
 
 delete_by_extension() {
     local ext="$1"
     while IFS= read -r -d '' file; do
+        if should_keep "$(basename "$file")"; then
+            if [[ -z "${KEPT_REPORTED["$file"]:-}" ]]; then
+                echo "  [KEPT]    $(basename "$file")  (matched a keep rule)"
+                KEPT_REPORTED["$file"]=1
+                (( kept++ )) || true
+            fi
+            continue
+        fi
         if [[ "$DRY_RUN" == true ]]; then
             echo "  [WOULD DELETE] $(basename "$file")  (extension: .$ext)"
         else
@@ -167,6 +207,14 @@ delete_by_pattern() {
     local pattern="$1"
     while IFS= read -r -d '' file; do
         if [[ "$(basename "$file")" =~ $pattern ]]; then
+            if should_keep "$(basename "$file")"; then
+                if [[ -z "${KEPT_REPORTED["$file"]:-}" ]]; then
+                    echo "  [KEPT]    $(basename "$file")  (matched a keep rule)"
+                    KEPT_REPORTED["$file"]=1
+                    (( kept++ )) || true
+                fi
+                continue
+            fi
             if [[ "$DRY_RUN" == true ]]; then
                 echo "  [WOULD DELETE] $(basename "$file")  (pattern: $pattern)"
             else
@@ -195,9 +243,23 @@ for pattern in "${PATTERNS[@]}"; do
     [[ -n "$pattern" ]] && delete_by_pattern "$pattern"
 done
 
+
+report_unused_keep_rules() {
+    local rule
+    for rule in "${KEEP[@]}"; do
+        [[ -z "$rule" ]] && continue
+        if [[ -z "${KEEP_HITS["$rule"]:-}" ]]; then
+            echo "⚠️  keep rule '$rule' matched no files — check it for typos," >&2
+            echo "    or the file you meant to protect may already be gone." >&2
+        fi
+    done
+}
+
 if [[ "$DRY_RUN" == true ]]; then
     echo "───────────────────────────────────"
     echo "Dry run. Would delete: $deleted file(s) from $TARGET_DIR"
+    (( kept > 0 )) && echo "Kept: $kept file(s) via keep rules"
+    report_unused_keep_rules
     echo "Nothing was changed. Re-run without --dry-run to apply."
     exit 0
 fi
@@ -218,5 +280,7 @@ pruned=$(( dirs_before - dirs_after ))
 
 echo "───────────────────────────────────"
 echo "Done. Deleted: $deleted file(s) from $TARGET_DIR"
+(( kept > 0 )) && echo "Kept: $kept file(s) via keep rules"
 (( pruned > 0 )) && echo "Pruned: $pruned empty director$([[ $pruned -eq 1 ]] && echo y || echo ies)"
+report_unused_keep_rules
 exit 0

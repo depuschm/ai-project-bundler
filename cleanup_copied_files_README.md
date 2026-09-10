@@ -46,17 +46,50 @@ chmod +x cleanup_copied_files.sh
 {
   "frontend": {
     "extensions": ["png", "jpg", "jpeg", "svg", "woff2", "ttf", "wav", "mp3", "ico", "pdf"],
-    "patterns": []
+    "patterns": [],
+    "keep": []
   },
   "backend": {
     "extensions": [],
-    "patterns": ["^[0-9]{14}_.*", "^launchSettings\\.json$"]
+    "patterns": ["^[0-9]{14}_.*", "^launchSettings\\.json$"],
+    "keep": []
   }
 }
 ```
 
 - `extensions` — files matching `*.ext` are deleted, **case-insensitively**, so `png` also removes `Logo.PNG`.
 - `patterns` — filenames (not full paths) matched against these as extended regular expressions are deleted.
+- `keep` — exceptions. Any filename matching one of these survives, even when an `extensions` or `patterns` rule also matches it. Optional: omit the key entirely and nothing changes.
+
+### Keep rules
+
+Delete rules can't express "all of these except that one" on their own, because bash regular expressions have no negative lookahead. `keep` covers that case:
+
+```json
+{
+  "web": {
+    "extensions": ["html"],
+    "patterns": [],
+    "keep": ["^index\\.html$"]
+  }
+}
+```
+
+Every `.html` file is removed except `index.html` — at any depth, since matching is on the filename, not the path.
+
+Kept files are logged so the exception is visible rather than implied:
+
+```
+  [KEPT]    index.html  (matched a keep rule)
+  [DELETED] about.html  (extension: .html)
+```
+
+**A keep rule that matches nothing is reported.** This key fails in the dangerous direction: a typo in a delete rule means a file survives, but a typo here means a file you believed was protected is deleted silently. So the script tells you when a rule spared nothing:
+
+```
+⚠️  keep rule '^index\.htm$' matched no files — check it for typos,
+    or the file you meant to protect may already be gone.
+```
 
 **Adding a new project type doesn't require touching the script** — just add a new top-level key to the config and pass `--mode <that key>`.
 
