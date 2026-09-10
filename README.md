@@ -14,7 +14,7 @@ Copy → Clean → Bundle. That's it.
 - **Config-driven cleanup.** Rules for what to delete (extensions, filename patterns) live in a `cleanup_rules.json` file, not hardcoded in the script — add a new project type by editing config, not code.
 - **Single file or split by extension.** Bundle everything into one `.md`, or organize output into `tsx.md`, `css.md`, `json.md`, etc.
 - **Handles large codebases gracefully.** Auto-splits output into numbered parts when it exceeds a size limit you set.
-- **Safe by default.** Never overwrites existing files or folders — no accidental data loss.
+- **Safe by default.** Never overwrites existing files or folders, and `--dry-run` lets you preview exactly what cleanup would delete before it deletes it.
 - **No dependencies.** Just bash and coreutils. Nothing to install.
 
 ---

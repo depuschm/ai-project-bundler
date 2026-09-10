@@ -15,7 +15,7 @@ Bundles all files from a folder into a `.md` file ready to upload as project kno
 chmod +x bundle_files.sh
 
 # 2. Run it
-./bundle_files.sh <folder> [output_file.md] [--by-extension] [--max-size <kb>]
+./bundle_files.sh <folder> [output_file.md] [--by-extension] [--suffix <name>] [--max-size <kb>]
 ```
 
 | Argument | Default | Description |
@@ -25,6 +25,7 @@ chmod +x bundle_files.sh
 | `--by-extension` | off | Creates one `.md` per file extension in a new folder |
 | `--max-size <kb>` | no limit | Splits output into numbered files if size exceeds this limit |
 | `--suffix <name>` | none | Adds a suffix to all output filenames |
+| `-h`, `--help` | — | Show usage and exit |
 
 ---
 
@@ -130,3 +131,4 @@ copied_files_App_Frontend_bundled/
 - Binary files (images, fonts, etc.) are automatically skipped.
 - The correct code language tag is auto-detected from the file extension.
 - The script will **not** overwrite an existing output file or folder.
+- Unknown options, missing values and stray extra arguments are rejected with a usage message, so a typo like `--by-extention` fails loudly instead of being silently treated as an output filename.

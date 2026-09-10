@@ -11,7 +11,7 @@ Deletes files from a copied folder according to a named ruleset — which extens
 chmod +x cleanup_copied_files.sh
 
 # 2. Run it, telling it which ruleset to apply
-./cleanup_copied_files.sh <folder> --mode <name> [--config <file>]
+./cleanup_copied_files.sh <folder> --mode <name> [--config <file>] [--dry-run]
 ```
 
 | Argument | Default | Description |
@@ -19,12 +19,17 @@ chmod +x cleanup_copied_files.sh
 | `folder` | required | The folder to clean up |
 | `--mode <name>` | *(guessed from folder name if omitted — see below)* | Which ruleset to apply. Must match a top-level key in the config file, e.g. `frontend` or `backend` |
 | `--config <file>` | `cleanup_rules.json` next to the script | Path to the rules config to use |
+| `--dry-run` | off | List what *would* be deleted and exit without deleting anything |
+| `-h`, `--help` | — | Show usage and exit |
 
 ---
 
 ## Examples
 
 ```bash
+# Preview first — recommended before deleting anything
+./cleanup_copied_files.sh copied_files_App_Frontend --mode frontend --dry-run
+
 # Explicit mode (recommended)
 ./cleanup_copied_files.sh copied_files_App_Frontend --mode frontend
 ./cleanup_copied_files.sh copied_files_App_Backend --mode backend
@@ -84,6 +89,28 @@ If you don't pass `--mode`, the script falls back to guessing from the folder na
 - `launchSettings.json` (contains secrets)
 
 Building something else — Vue, Django, Rails? Copy one of these blocks in `cleanup_rules.json`, rename the key, and adjust the extensions/patterns to fit that stack's conventions.
+
+---
+
+## Previewing with `--dry-run`
+
+Deletion is immediate and irreversible — files are removed with `rm`, not moved to a trash folder. The script's only guardrail is the folder you name, so a mistyped path deletes from wherever you pointed it.
+
+`--dry-run` does all the matching and prints the result without touching anything:
+
+```
+DRY RUN — nothing will be deleted.
+
+Files matching mode 'frontend':
+───────────────────────────────────
+  [WOULD DELETE] a.png  (extension: .png)
+  [WOULD DELETE] logo.PNG  (extension: .png)
+───────────────────────────────────
+Dry run. Would delete: 2 file(s) from /path/to/copied_files_App_Frontend
+Nothing was changed. Re-run without --dry-run to apply.
+```
+
+It is opt-in: without the flag the script deletes straight away.
 
 ---
 
