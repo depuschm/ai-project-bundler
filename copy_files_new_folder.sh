@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # copy_files_new_folder.sh
-# Copies all files from SOURCE_DIR into a newly created folder in the current directory.
+# Copies all files from SOURCE_DIR into a newly created folder in the current directory,
+# preserving the original subfolder structure so files with the same name don't collide.
 
 set -euo pipefail
 
@@ -41,13 +42,28 @@ echo "Files to copy    : ${#files[@]}"
 echo "───────────────────────────────────"
 
 copied=0
+collisions=0
 
 for file in "${files[@]}"; do
-    filename="$(basename "$file")"
-    cp "$file" "$TARGET_DIR/$filename"
-    echo "  [COPIED] $filename"
+    relative_path="${file#"$SOURCE_DIR"/}"
+    dest="$TARGET_DIR/$relative_path"
+
+    # Paths are preserved now, so this should not fire. It still can on a
+    # case-insensitive filesystem (macOS/Windows), where Switch.tsx and
+    # switch.tsx in the same folder are the same path. Warn, don't lose it.
+    if [[ -e "$dest" ]]; then
+        echo "  [COLLISION] $relative_path  (case-insensitive filesystem — earlier copy overwritten)" >&2
+        (( collisions++ )) || true
+    fi
+
+    mkdir -p "$(dirname "$dest")"
+    cp "$file" "$dest"
+    echo "  [COPIED] $relative_path"
     (( copied++ )) || true
 done
 
 echo "───────────────────────────────────"
 echo "Done. Copied: $copied file(s) → $TARGET_DIR"
+if (( collisions > 0 )); then
+    echo "Warning: $collisions name collision(s) — that many file(s) were lost." >&2
+fi
