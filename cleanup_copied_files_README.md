@@ -59,7 +59,15 @@ chmod +x cleanup_copied_files.sh
 
 - `extensions` — files matching `*.ext` are deleted, **case-insensitively**, so `png` also removes `Logo.PNG`.
 - `patterns` — filenames (not full paths) matched against these as extended regular expressions are deleted.
-- `keep` — exceptions. Any filename matching one of these survives, even when an `extensions` or `patterns` rule also matches it. Optional: omit the key entirely and nothing changes.
+- `keep` — exceptions. Any filename matching one of these survives, even when an `extensions` or `patterns` rule also matches it.
+
+All three keys are optional and can be omitted rather than left as empty arrays. A mode needs at least one of `extensions` or `patterns` to delete anything; if it has neither, the script says so and deletes nothing:
+
+```json
+{ "assets_only": { "extensions": ["png", "jpg"] } }
+```
+
+The config file itself is required. If it is missing the script stops with an error rather than falling back to built-in rules — what gets deleted should always be something you can read in a file you control.
 
 ### Keep rules
 

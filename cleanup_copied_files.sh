@@ -245,12 +245,26 @@ done
 
 
 report_unused_keep_rules() {
-    local rule
+    # A rule that spared nothing is only worth warning about if it matches no
+    # file at all — that suggests a typo. A rule that matches files no delete
+    # rule would have touched is merely redundant, and warning about it would
+    # cry wolf on a correctly-written config.
+    local rule file
     for rule in "${KEEP[@]}"; do
         [[ -z "$rule" ]] && continue
-        if [[ -z "${KEEP_HITS["$rule"]:-}" ]]; then
-            echo "⚠️  keep rule '$rule' matched no files — check it for typos," >&2
-            echo "    or the file you meant to protect may already be gone." >&2
+        [[ -n "${KEEP_HITS["$rule"]:-}" ]] && continue
+
+        local matches_something=false
+        while IFS= read -r -d '' file; do
+            if [[ "$(basename "$file")" =~ $rule ]]; then
+                matches_something=true
+                break
+            fi
+        done < <(find "$TARGET_DIR" -type f -print0)
+
+        if [[ "$matches_something" == false ]]; then
+            echo "⚠️  keep rule '$rule' matches no file in $TARGET_DIR — check it" >&2
+            echo "    for typos, or the file you meant to protect may already be gone." >&2
         fi
     done
 }
