@@ -51,6 +51,7 @@ FOLDER_NAME="$(basename "$SOURCE_DIR")"
 get_language() {
     local file="$1"
     local ext="${file##*.}"
+    ext="${ext,,}"
     case "$ext" in
         ts|tsx)       echo "tsx" ;;
         js|jsx)       echo "jsx" ;;
@@ -143,11 +144,17 @@ bundle_files() {
         if [[ -n "$filter_ext" ]]; then
             filename="$(basename "$file")"
             ext="${filename##*.}"
+            # Must mirror the extension-collection logic below, or files with no
+            # extension (Dockerfile, Makefile, LICENSE) are silently dropped.
+            [[ "$filename" == "$ext" ]] && ext="no_extension"
+            ext="${ext,,}"
             [[ "$ext" != "$filter_ext" ]] && continue
         fi
 
-        # Skip binary files
-        if ! file "$file" | grep -qE 'text|empty|JSON|ASCII'; then
+        # Skip binary files. Use -b so the file's own path is not part of the
+        # matched string: a folder like src/context/ contains "text" and would
+        # otherwise make every binary file inside it look like a text file.
+        if ! file -b "$file" | grep -qE 'text|empty|JSON|ASCII'; then
             echo "  [SKIP]     $relative_path  (binary)" >&2
             (( skipped++ )) || true
             continue
@@ -220,6 +227,7 @@ if [[ "$BY_EXTENSION" == true ]]; then
         filename="$(basename "$file")"
         ext="${filename##*.}"
         [[ "$filename" == "$ext" ]] && ext="no_extension"
+        ext="${ext,,}"   # Legacy.TSX and switch.tsx share one bucket
         seen_exts["$ext"]=1
     done < <(find "$SOURCE_DIR" -type f -print0)
 

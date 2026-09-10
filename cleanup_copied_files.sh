@@ -149,7 +149,9 @@ delete_by_extension() {
         echo "  [DELETED] $(basename "$file")  (extension: .$ext)"
         rm "$file"
         (( deleted++ )) || true
-    done < <(find "$TARGET_DIR" -type f -name "*.${ext}" -print0)
+        # -iname, not -name: assets routinely ship as Logo.PNG or photo.JPG,
+        # and a case-sensitive match leaves those binaries in the bundle.
+    done < <(find "$TARGET_DIR" -type f -iname "*.${ext}" -print0)
 }
 
 delete_by_pattern() {
