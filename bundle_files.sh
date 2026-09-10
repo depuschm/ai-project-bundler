@@ -15,19 +15,57 @@ OUTPUT_FILE=""
 MAX_SIZE_KB=0  # 0 = no limit
 SUFFIX=""
 
+usage() {
+    cat >&2 <<EOF
+Usage: ./bundle_files.sh <folder> [output_file.md] [options]
+
+  <folder>            Folder to bundle (required)
+  output_file.md      Output filename, single mode only
+                       (default: <folder_name>.md)
+  --by-extension      Write one .md per file extension
+  --suffix <name>     Append a suffix to all output filenames
+  --max-size <kb>     Split output into numbered parts past this size
+  -h, --help          Show this message
+
+Examples:
+  ./bundle_files.sh copied_files_App_Frontend
+  ./bundle_files.sh copied_files_App_Frontend frontend.md
+  ./bundle_files.sh copied_files_App_Frontend --by-extension --max-size 800
+EOF
+    exit 1
+}
+
 shift || true
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --by-extension) BY_EXTENSION=true ;;
         --max-size)
+            # Without this guard a missing value shifts past the end and
+            # set -e aborts the run with no output at all.
+            [[ $# -ge 2 ]] || { echo "Error: --max-size requires a value in KB." >&2; usage; }
             shift
-            MAX_SIZE_KB="${1:-0}"
+            MAX_SIZE_KB="$1"
+            [[ "$MAX_SIZE_KB" =~ ^[0-9]+$ ]] || {
+                echo "Error: --max-size expects a whole number of KB, got '$MAX_SIZE_KB'." >&2; usage; }
             ;;
         --suffix)
+            [[ $# -ge 2 ]] || { echo "Error: --suffix requires a value." >&2; usage; }
             shift
-            SUFFIX="_${1:-}"
+            SUFFIX="_$1"
             ;;
-        *) OUTPUT_FILE="$1" ;;
+        -h|--help) usage ;;
+        # Anything else beginning with - is a mistyped flag. Falling through to
+        # OUTPUT_FILE would silently turn --by-extention into an output called
+        # "--by-extention.md" while quietly running in single mode.
+        -*) echo "Error: unknown option '$1'." >&2; usage ;;
+        *)
+            if [[ -z "$OUTPUT_FILE" ]]; then
+                OUTPUT_FILE="$1"
+            else
+                echo "Error: unexpected argument '$1'." >&2
+                usage
+            fi
+            ;;
     esac
     shift
 done
