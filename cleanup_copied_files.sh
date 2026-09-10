@@ -12,13 +12,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ── Configuration ────────────────────────────────────────────────────────────
 TARGET_DIR=""
 MODE=""
+DRY_RUN=false
 CONFIG_FILE="${SCRIPT_DIR}/cleanup_rules.json"
 
 usage() {
     cat >&2 <<EOF
-Usage: ./cleanup_copied_files.sh <folder> [--mode <name>] [--config <file>]
+Usage: ./cleanup_copied_files.sh <folder> [--mode <name>] [--config <file>] [--dry-run]
 
   <folder>          Folder to clean up (required)
+  --dry-run         List what would be deleted without deleting anything
   --mode <name>     Ruleset to apply, e.g. "frontend" or "backend".
                      Must match a top-level key in the config file.
                      If omitted, the script guesses from the folder name
@@ -44,6 +46,9 @@ while [[ $# -gt 0 ]]; do
         --config)
             shift
             CONFIG_FILE="${1:-}"
+            ;;
+        --dry-run)
+            DRY_RUN=true
             ;;
         -h|--help)
             usage
@@ -146,8 +151,12 @@ deleted=0
 delete_by_extension() {
     local ext="$1"
     while IFS= read -r -d '' file; do
-        echo "  [DELETED] $(basename "$file")  (extension: .$ext)"
-        rm "$file"
+        if [[ "$DRY_RUN" == true ]]; then
+            echo "  [WOULD DELETE] $(basename "$file")  (extension: .$ext)"
+        else
+            echo "  [DELETED] $(basename "$file")  (extension: .$ext)"
+            rm "$file"
+        fi
         (( deleted++ )) || true
         # -iname, not -name: assets routinely ship as Logo.PNG or photo.JPG,
         # and a case-sensitive match leaves those binaries in the bundle.
@@ -158,14 +167,24 @@ delete_by_pattern() {
     local pattern="$1"
     while IFS= read -r -d '' file; do
         if [[ "$(basename "$file")" =~ $pattern ]]; then
-            echo "  [DELETED] $(basename "$file")  (pattern: $pattern)"
-            rm "$file"
+            if [[ "$DRY_RUN" == true ]]; then
+                echo "  [WOULD DELETE] $(basename "$file")  (pattern: $pattern)"
+            else
+                echo "  [DELETED] $(basename "$file")  (pattern: $pattern)"
+                rm "$file"
+            fi
             (( deleted++ )) || true
         fi
     done < <(find "$TARGET_DIR" -type f -print0)
 }
 
-echo "Deleting files for mode '$MODE'..."
+if [[ "$DRY_RUN" == true ]]; then
+    echo "DRY RUN — nothing will be deleted."
+    echo ""
+    echo "Files matching mode '$MODE':"
+else
+    echo "Deleting files for mode '$MODE'..."
+fi
 echo "───────────────────────────────────"
 
 for ext in "${EXTENSIONS[@]}"; do
@@ -175,6 +194,13 @@ done
 for pattern in "${PATTERNS[@]}"; do
     [[ -n "$pattern" ]] && delete_by_pattern "$pattern"
 done
+
+if [[ "$DRY_RUN" == true ]]; then
+    echo "───────────────────────────────────"
+    echo "Dry run. Would delete: $deleted file(s) from $TARGET_DIR"
+    echo "Nothing was changed. Re-run without --dry-run to apply."
+    exit 0
+fi
 
 # Deleting files leaves their directories behind. Prune the empty ones so the
 # working copy mirrors what actually survived. -mindepth 1 keeps TARGET_DIR
