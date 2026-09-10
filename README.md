@@ -41,7 +41,7 @@ The pipeline is three independent, chainable scripts:
 
 | Step | Script | What it does |
 |---|---|---|
-| 1️⃣ | [`copy_files_new_folder.sh`](copy_files_new_folder_README.md) | Recursively copies every file from a source folder into a flat working copy |
+| 1️⃣ | [`copy_files_new_folder.sh`](copy_files_new_folder_README.md) | Recursively copies every file from a source folder into a working copy that mirrors the source layout |
 | 2️⃣ | [`cleanup_copied_files.sh`](cleanup_copied_files_README.md) | Deletes files you don't want (assets, secrets, migrations), based on a named ruleset from `cleanup_rules.json` |
 | 3️⃣ | [`bundle_files.sh`](bundle_files_README.md) | Bundles what's left into clean, syntax-highlighted Markdown |
 

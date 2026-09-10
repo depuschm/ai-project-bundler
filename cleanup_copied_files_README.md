@@ -50,7 +50,7 @@ chmod +x cleanup_copied_files.sh
 }
 ```
 
-- `extensions` — files matching `*.ext` are deleted.
+- `extensions` — files matching `*.ext` are deleted, **case-insensitively**, so `png` also removes `Logo.PNG`.
 - `patterns` — filenames (not full paths) matched against these as extended regular expressions are deleted.
 
 **Adding a new project type doesn't require touching the script** — just add a new top-level key to the config and pass `--mode <that key>`.
