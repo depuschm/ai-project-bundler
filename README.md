@@ -11,7 +11,7 @@ Nothing is copied. Nothing is deleted.
 ## ✨ Why you'd want this
 
 - **Zero manual curation.** Point it at a folder, get back tidy Markdown ready to upload as project knowledge to Claude, ChatGPT, Gemini, or any other AI assistant.
-- **Config-driven rules.** What to ignore (directories, extensions, filename patterns) lives in a `cleanup_rules.json` file, not hardcoded in the script — add a new project type by editing config, not code.
+- **Config-driven rules.** What to ignore (directories, extensions, filename patterns) lives in a `rules.json` file, not hardcoded in the script — add a new project type by editing config, not code.
 - **Skips dependencies properly.** `node_modules`, `.git`, `bin`, `obj` and friends are pruned during the walk, so they're never read. On a real project this is the difference between a nine-second run producing 702 files and a 58ms run producing the 2 you wanted.
 - **Single file or split by extension.** Bundle everything into one `.md`, or organize output into `tsx.md`, `css.md`, `json.md`, etc.
 - **Handles large codebases gracefully.** Auto-splits output into numbered parts when it exceeds a size limit you set.
@@ -44,7 +44,7 @@ One command does the whole job:
 ./bundle_files.sh ./App_Backend --mode backend
 ```
 
-[`bundle_files.sh`](bundle_files_README.md) walks the source tree once. Directories listed in `exclude_dirs` are pruned — `find` never descends into them — and files matching an `extensions` or `patterns` rule are skipped as it goes. Everything else is written to Markdown with its relative path as a heading. Rules are read from [`cleanup_rules.json`](cleanup_rules.json) via [`rules_lib.sh`](rules_lib.sh), shared by every script that needs them.
+[`bundle_files.sh`](bundle_files_README.md) walks the source tree once. Directories listed in `exclude_dirs` are pruned — `find` never descends into them — and files matching an `extensions` or `patterns` rule are skipped as it goes. Everything else is written to Markdown with its relative path as a heading. Rules are read from [`rules.json`](rules.json) via [`rules_lib.sh`](rules_lib.sh), shared by every script that needs them.
 
 Files skipped by a rule are reported, so nothing disappears quietly:
 
@@ -53,30 +53,13 @@ Files skipped by a rule are reported, so nothing disappears quietly:
   [BUNDLED]  src/App.tsx → App_Backend.md
 ```
 
-### Working from a copy instead
+Nothing is copied and nothing is deleted — the only thing written is the output folder. Point it at a working copy instead of your source if you want, but there's no need to.
 
-If you'd rather have an intermediate folder you can inspect or hand-edit before bundling, the original three-step pipeline still works and is fully supported:
-
-| Step | Script | What it does |
-|---|---|---|
-| 1️⃣ | [`copy_files_new_folder.sh`](copy_files_new_folder_README.md) | Copies the source into a working folder mirroring its layout. Pass `--mode` to prune excluded directories while copying |
-| 2️⃣ | [`cleanup_copied_files.sh`](cleanup_copied_files_README.md) | Deletes unwanted files from the copy, based on a named ruleset |
-| 3️⃣ | [`bundle_files.sh`](bundle_files_README.md) | Bundles what's left |
-
-```bash
-./copy_files_new_folder.sh ./App_Backend --mode backend
-./cleanup_copied_files.sh ./copied_files_App_Backend --mode backend --dry-run  # preview
-./cleanup_copied_files.sh ./copied_files_App_Backend --mode backend
-./bundle_files.sh ./copied_files_App_Backend
-```
-
-This path does delete files, so it has `--dry-run`. Always pass `--mode` to the copy step — without it every dependency gets copied before being deleted, which is the slow path the one-command flow exists to avoid.
-
-Each script also has its own README with full usage details and examples.
+[`bundle_files.sh`](bundle_files_README.md) has its own README with full usage details and examples.
 
 ### 🧹 What gets left out
 
-Rules are named modes in [`cleanup_rules.json`](cleanup_rules.json), selected with `--mode`. A mode may define any of four keys, all optional:
+Rules are named modes in [`rules.json`](rules.json), selected with `--mode`. A mode may define any of four keys, all optional:
 
 | Key | Matches on | Effect |
 |---|---|---|
@@ -97,7 +80,7 @@ prunes `node_modules` `.git` `dist` `build` `coverage` `.next`; skips `.png` `.j
 **`backend`** — for an **ASP.NET Core** app:
 prunes `.git` `bin` `obj` `packages`; skips dated EF Core migrations (e.g. `20260308022512_InitialCreate.cs`) and `launchSettings.json`, which often holds secrets
 
-Using a different stack? Add a key to `cleanup_rules.json` and pass `--mode <that key>` — no script changes needed.
+Using a different stack? Add a key to `rules.json` and pass `--mode <that key>` — no script changes needed.
 
 ### 📦 Bundling options
 

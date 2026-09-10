@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # rules_lib.sh
-# Shared reader for cleanup_rules.json, sourced by cleanup_copied_files.sh and
-# bundle_files.sh. Kept in one place because the parser is hand-rolled and
-# deliberately simple — two copies of it would drift.
+# Shared reader for rules.json, sourced by every script that takes --mode.
+# Kept in one place because the parser is hand-rolled and deliberately simple —
+# two copies of it would drift.
 #
 # A ruleset is a named mode containing any of:
 #   exclude_dirs  directory names; files anywhere beneath one are ignored
@@ -14,7 +14,7 @@
 
 # ── Minimal JSON reader ───────────────────────────────────────────────────────
 # Extracts the object for a given top-level key, then string arrays within it.
-# Assumes the flat, one-level-deep shape documented in cleanup_rules.json
+# Assumes the flat, one-level-deep shape documented in rules.json
 # (no nested objects, no escaped quotes in values).
 
 rules_extract_mode_block() {

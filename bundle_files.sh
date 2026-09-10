@@ -4,7 +4,6 @@
 # With --by-extension, creates one .md per file extension in a new folder.
 # With --suffix <name>, adds a suffix to all output filenames.
 # With --max-size <kb>, splits output into numbered files if size limit is exceeded.
-# Run this after cleanup_copied_files.sh.
 
 set -euo pipefail
 
@@ -17,7 +16,7 @@ source "${SCRIPT_DIR}/rules_lib.sh"
 EXCLUDE_DIRS=(); EXTENSIONS=(); PATTERNS=(); KEEP=()
 RULES_PRUNE_ARGS=()
 MODE=""
-CONFIG_FILE="${SCRIPT_DIR}/cleanup_rules.json"
+CONFIG_FILE="${SCRIPT_DIR}/rules.json"
 ignored=0
 
 # ── Configuration ────────────────────────────────────────────────────────────
@@ -40,7 +39,7 @@ Usage: ./bundle_files.sh <folder> [output_file.md] [options]
   --mode <name>       Apply a ruleset from the config while walking, so
                        excluded directories and files are never read
   --rules <file>      Path to the ruleset config
-                       (default: cleanup_rules.json next to this script)
+                       (default: rules.json next to this script)
   -h, --help          Show this message
 
 Examples:

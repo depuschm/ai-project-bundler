@@ -28,7 +28,7 @@ chmod +x bundle_files.sh
 | `--max-size <kb>` | no limit | Splits output into numbered files if size exceeds this limit |
 | `--suffix <name>` | none | Adds a suffix to all output filenames |
 | `--mode <name>` | none | Apply a ruleset while walking. Without it, every file is bundled |
-| `--rules <file>` | `cleanup_rules.json` next to the script | Path to the ruleset config |
+| `--rules <file>` | `rules.json` next to the script | Path to the ruleset config |
 | `-h`, `--help` | — | Show usage and exit |
 
 ---
@@ -39,7 +39,7 @@ chmod +x bundle_files.sh
 ./bundle_files.sh ./App_Frontend --mode frontend
 ```
 
-Reads the `frontend` ruleset from `cleanup_rules.json`. Directories in `exclude_dirs` are pruned at the `find` level, so a `node_modules` is never descended into rather than being read and discarded. Files matching `extensions` or `patterns` are skipped unless a `keep` rule spares them.
+Reads the `frontend` ruleset from `rules.json`. Directories in `exclude_dirs` are pruned at the `find` level, so a `node_modules` is never descended into rather than being read and discarded. Files matching `extensions` or `patterns` are skipped unless a `keep` rule spares them.
 
 Skipped files are reported so nothing vanishes silently:
 
@@ -50,7 +50,7 @@ Done. Bundled: 4  |  Skipped: 0 binary file(s)
 Ignored by mode 'frontend': 1 file(s)
 ```
 
-Rules are loaded by [`rules_lib.sh`](rules_lib.sh), shared with the other scripts. See the [cleanup README](cleanup_copied_files_README.md) for the ruleset format.
+Rules are loaded by [`rules_lib.sh`](rules_lib.sh). See the [main README](README.md#-what-gets-left-out) for the ruleset format.
 
 ---
 
@@ -133,19 +133,11 @@ copied_files_App_Frontend_bundled/
 ## Full workflow
 
 ```bash
-# 1. Copy all files
-./copy_files_new_folder.sh App_Frontend
-./copy_files_new_folder.sh App_Backend
+# 1. Bundle each project, filtering as it walks
+./bundle_files.sh ./App_Frontend --mode frontend --by-extension --max-size 500
+./bundle_files.sh ./App_Backend  --mode backend  --by-extension --max-size 500
 
-# 2. Delete unwanted files
-./cleanup_copied_files.sh copied_files_App_Frontend
-./cleanup_copied_files.sh copied_files_App_Backend
-
-# 3. Bundle into .md for your AI assistant
-./bundle_files.sh copied_files_App_Frontend --by-extension --max-size 500
-./bundle_files.sh copied_files_App_Backend --by-extension --max-size 500
-
-# 4. Upload the .md file(s) to your AI assistant's project knowledge
+# 2. Upload the .md file(s) to your AI assistant's project knowledge
 ```
 
 ---
