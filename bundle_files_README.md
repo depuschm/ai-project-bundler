@@ -53,11 +53,15 @@ Output folder    : App_Frontend_bundled
 
   [IGNORED]  assets/Logo.PNG  (extension: .png)
   [BUNDLED]  src/App.tsx → App_Frontend.md
+
+───────────────────────────────────
 Done. Bundled: 4  |  Skipped: 0 binary file(s)
 Ignored by mode 'frontend': 1 file(s)
+Output folder: App_Frontend_bundled
+Elapsed: 51ms
 ```
 
-The `Scanning` line covers a single pass that checks every file is readable and probes its type in one batch, before anything is written.
+The `Scanning` line covers a single pass that checks every file is readable and probes its type in one batch, before anything is written. `Elapsed` reports wall-clock time for the whole run, in milliseconds under a second and in seconds above it.
 
 Rules are loaded by [`rules_lib.sh`](rules_lib.sh). See the [main README](README.md#-what-gets-left-out) for the ruleset format.
 
